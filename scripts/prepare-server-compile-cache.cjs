@@ -4,15 +4,38 @@ const path = require("node:path");
 const fs = require("node:fs");
 const os = require("node:os");
 
+// Re-seals unsigned macOS .app bundles after Info.plist/Resources edits so Apple Silicon accepts them.
+function adHocSignUnsignedMacApp(appBundlePath) {
+  if (process.platform !== "darwin" || process.env.CSC_IDENTITY_AUTO_DISCOVERY !== "false") {
+    return;
+  }
+  spawnSync("xattr", ["-cr", appBundlePath], { encoding: "utf8" });
+  const signResult = spawnSync(
+    "codesign",
+    ["--force", "--deep", "--sign", "-", "--timestamp=none", appBundlePath],
+    { encoding: "utf8", timeout: 120000 },
+  );
+  if (signResult.status !== 0) {
+    throw new Error(
+      `Ad-hoc codesign failed for ${appBundlePath}: ${signResult.error || signResult.stderr}`,
+    );
+  }
+  console.log(`[macos-adhoc-sign] Ad-hoc signed unsigned macOS bundle ${appBundlePath}`);
+}
+
 // afterPack runs before signing and installer creation, against the final ASAR layout.
 module.exports = async ({ appOutDir, electronPlatformName, arch, packager }) => {
   if (!["darwin", "win32", "linux"].includes(electronPlatformName)) {
     console.log(`[server-compile-cache] Skipping unsupported target ${electronPlatformName}`);
     return;
   }
+  const product = packager.appInfo.productFilename;
+  const macAppBundlePath =
+    electronPlatformName === "darwin" ? path.join(appOutDir, `${product}.app`) : undefined;
   // Generating the cache runs the bundle, and a PR preview's bundle must never run next to signing secrets.
   if (process.env.T3CODE_DESKTOP_UNTRUSTED_BUNDLE === "true") {
     console.log("[server-compile-cache] Skipping untrusted bundle");
+    if (macAppBundlePath) adHocSignUnsignedMacApp(macAppBundlePath);
     return;
   }
   const targetArch = ["ia32", "x64", "armv7l", "arm64", "universal"][arch];
@@ -28,16 +51,16 @@ module.exports = async ({ appOutDir, electronPlatformName, arch, packager }) => 
     console.log(
       `[server-compile-cache] Skipping unexecutable target ${electronPlatformName}/${targetArch}`,
     );
+    if (macAppBundlePath) adHocSignUnsignedMacApp(macAppBundlePath);
     return;
   }
-  const product = packager.appInfo.productFilename;
   const resources =
     electronPlatformName === "darwin"
-      ? path.join(appOutDir, `${product}.app`, "Contents", "Resources")
+      ? path.join(macAppBundlePath, "Contents", "Resources")
       : path.join(appOutDir, "resources");
   const executable =
     electronPlatformName === "darwin"
-      ? path.join(appOutDir, `${product}.app`, "Contents", "MacOS", product)
+      ? path.join(macAppBundlePath, "Contents", "MacOS", product)
       : path.join(
           appOutDir,
           electronPlatformName === "win32" ? `${product}.exe` : packager.executableName,
@@ -69,4 +92,5 @@ module.exports = async ({ appOutDir, electronPlatformName, arch, packager }) => 
   if (result.status !== 0)
     throw new Error(`Server compile cache generation failed: ${result.error || result.stderr}`);
   console.log("[server-compile-cache] Prepared server bytecode with packaged Electron");
+  if (macAppBundlePath) adHocSignUnsignedMacApp(macAppBundlePath);
 };
