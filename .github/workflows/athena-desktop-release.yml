@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "GitHub release tag to create or upload installers to (e.g. v0.1.11-athena.1)"
+        description: "GitHub release tag to create or upload installers to (e.g. v1.0.1)"
         required: true
         type: string
       platform:
@@ -19,6 +19,27 @@ on:
           - both
           - windows
           - macos
+  workflow_call:
+    inputs:
+      tag:
+        description: "GitHub release tag to create or upload installers to (e.g. v1.0.1)"
+        required: true
+        type: string
+      sha:
+        description: "Commit SHA to build (defaults to github.sha)"
+        required: false
+        default: ""
+        type: string
+      platform:
+        description: "Which platform(s) to build (both, windows, or macos)"
+        required: false
+        default: "both"
+        type: string
+      notes:
+        description: "Optional extra release notes to prepend"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: write
@@ -34,11 +55,12 @@ jobs:
         shell: bash
         env:
           GIT_TERMINAL_PROMPT: "0"
+          TARGET_SHA: ${{ inputs.sha || github.sha }}
         run: |
           set -euo pipefail
           git init .
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git fetch --no-tags --depth=1 origin "${TARGET_SHA}"
           git sparse-checkout set --no-cone '/*' '!/.repos/'
           git checkout --detach FETCH_HEAD
 
@@ -60,10 +82,13 @@ jobs:
 
       - name: Build Windows installer (.exe)
         shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
           cp .env.example .env
-          vp run dist:desktop:artifact --platform win --target nsis --arch x64 --output-dir release --verbose
+          build_version="${RELEASE_TAG#v}"
+          vp run dist:desktop:artifact --platform win --target nsis --arch x64 --build-version "$build_version" --output-dir release --verbose
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -80,6 +105,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+          TARGET_SHA: ${{ inputs.sha || github.sha }}
+          EXTRA_NOTES: ${{ inputs.notes || '' }}
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -87,7 +114,10 @@ jobs:
             release_notes="$(printf '%s\n\n%s\n' \
               'Athena desktop builds (Windows x64 + macOS Apple Silicon).' \
               'If macOS Gatekeeper blocks the unsigned app after dragging Athena.app into Applications, run once in Terminal: `xattr -cr /Applications/Athena.app`')"
-            gh release create "$RELEASE_TAG" --target "${GITHUB_SHA}" --title "Athena ${RELEASE_TAG}" --notes "$release_notes" || true
+            if [[ -n "$EXTRA_NOTES" ]]; then
+              release_notes="$(printf '%s\n\n%s\n' "$EXTRA_NOTES" "$release_notes")"
+            fi
+            gh release create "$RELEASE_TAG" --target "${TARGET_SHA}" --title "Athena ${RELEASE_TAG}" --notes "$release_notes" || true
           fi
           files=(release/*.exe release/*.blockmap release/latest*.yml)
           gh release upload "$RELEASE_TAG" "${files[@]}" --clobber
@@ -95,18 +125,19 @@ jobs:
   build-macos:
     if: github.event_name == 'push' || inputs.platform == 'both' || inputs.platform == 'macos'
     name: Build macOS arm64 (.dmg)
-    runs-on: macos-latest
+    runs-on: macos-15
     timeout-minutes: 45
     steps:
       - name: Checkout
         shell: bash
         env:
           GIT_TERMINAL_PROMPT: "0"
+          TARGET_SHA: ${{ inputs.sha || github.sha }}
         run: |
           set -euo pipefail
           git init .
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git fetch --no-tags --depth=1 origin "${TARGET_SHA}"
           git sparse-checkout set --no-cone '/*' '!/.repos/'
           git checkout --detach FETCH_HEAD
 
@@ -129,6 +160,7 @@ jobs:
       - name: Build macOS installer (.dmg)
         shell: bash
         env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
@@ -137,11 +169,12 @@ jobs:
         run: |
           set -euo pipefail
           cp .env.example .env
+          build_version="${RELEASE_TAG#v}"
           signed_args=()
           if [[ -n "${CSC_LINK:-}" ]]; then
             signed_args+=(--signed)
           fi
-          vp run dist:desktop:artifact --platform mac --target dmg --arch arm64 --output-dir release --verbose "${signed_args[@]}"
+          vp run dist:desktop:artifact --platform mac --target dmg --arch arm64 --build-version "$build_version" --output-dir release --verbose "${signed_args[@]}"
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
@@ -159,6 +192,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+          TARGET_SHA: ${{ inputs.sha || github.sha }}
+          EXTRA_NOTES: ${{ inputs.notes || '' }}
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -166,7 +201,10 @@ jobs:
             release_notes="$(printf '%s\n\n%s\n' \
               'Athena desktop builds (Windows x64 + macOS Apple Silicon).' \
               'If macOS Gatekeeper blocks the unsigned app after dragging Athena.app into Applications, run once in Terminal: `xattr -cr /Applications/Athena.app`')"
-            gh release create "$RELEASE_TAG" --target "${GITHUB_SHA}" --title "Athena ${RELEASE_TAG}" --notes "$release_notes" || true
+            if [[ -n "$EXTRA_NOTES" ]]; then
+              release_notes="$(printf '%s\n\n%s\n' "$EXTRA_NOTES" "$release_notes")"
+            fi
+            gh release create "$RELEASE_TAG" --target "${TARGET_SHA}" --title "Athena ${RELEASE_TAG}" --notes "$release_notes" || true
           fi
           files=(release/*.dmg release/*.zip release/*.blockmap release/latest*.yml)
           gh release upload "$RELEASE_TAG" "${files[@]}" --clobber

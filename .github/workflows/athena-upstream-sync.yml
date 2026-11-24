@@ -1,0 +1,146 @@
+name: Athena Upstream Sync
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      auto_release:
+        description: "Automatically tag and build a new Athena release when upstream merges cleanly"
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: athena-upstream-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  sync:
+    name: Sync pingdotgg/t3code main into Athena
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      released: ${{ steps.merge.outputs.released }}
+      tag: ${{ steps.merge.outputs.tag }}
+      sha: ${{ steps.merge.outputs.sha }}
+      notes: ${{ steps.merge.outputs.notes }}
+    steps:
+      - name: Checkout origin main (treeless, excluding .repos)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          set -euo pipefail
+          git init .
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git remote add upstream "https://github.com/pingdotgg/t3code.git"
+          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git fetch --filter=blob:none --tags origin main
+          git checkout -B main FETCH_HEAD
+          git fetch --filter=blob:none --no-tags upstream main
+
+      - name: Merge upstream/main
+        id: merge
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTO_RELEASE: ${{ github.event_name == 'schedule' || inputs.auto_release }}
+        run: |
+          set -euo pipefail
+          echo "released=false" >> "$GITHUB_OUTPUT"
+
+          behind_count="$(git rev-list --count HEAD..upstream/main)"
+          if [[ "$behind_count" -eq 0 ]]; then
+            echo "Already up to date with pingdotgg/t3code main."
+            exit 0
+          fi
+
+          upstream_sha="$(git rev-parse --short upstream/main)"
+          echo "Found ${behind_count} new upstream commit(s) (head ${upstream_sha})."
+
+          git config user.name "athena-sync[bot]"
+          git config user.email "athena-sync[bot]@users.noreply.github.com"
+
+          summary="$(git log --no-merges --pretty=format:'- %s (%h)' -n 20 HEAD..upstream/main || true)"
+          if [[ "$behind_count" -gt 20 ]]; then
+            summary="$(printf '%s\n- ...and %d more upstream commits\n' "$summary" "$((behind_count - 20))")"
+          fi
+
+          if ! git merge --no-edit -m "chore(sync): merge upstream pingdotgg/t3code (${upstream_sha})" upstream/main; then
+            conflict_files="$(git diff --name-only --diff-filter=U || true)"
+            git merge --abort || true
+
+            issue_title="Upstream sync conflict with pingdotgg/t3code"
+            issue_body="$(printf '%s\n\n### Conflicting files\n```\n%s\n```\n\n### Upstream commits waiting (%s, head `%s`)\n%s\n\n### Resolve locally\n```bash\ngit fetch upstream main && git merge upstream/main\n```\n' \
+              'Automated sync from `pingdotgg/t3code` (`main`) hit merge conflicts and left `main` untouched.' \
+              "${conflict_files:-<unknown>}" \
+              "$behind_count" \
+              "$upstream_sha" \
+              "${summary:-<no non-merge commits>}")"
+
+            existing_issue="$(gh issue list --state open --search "\"${issue_title}\" in:title" --json number --jq '.[0].number // empty')"
+            if [[ -n "$existing_issue" ]]; then
+              gh issue comment "$existing_issue" --body "$issue_body"
+            else
+              gh issue create --title "$issue_title" --body "$issue_body"
+            fi
+            echo "Merge conflict recorded in GitHub issue; exiting cleanly without breaking main."
+            exit 0
+          fi
+
+          git push origin main
+          new_sha="$(git rev-parse HEAD)"
+
+          # Close any open upstream-sync conflict issue now that main merged cleanly.
+          existing_issue="$(gh issue list --state open --search '"Upstream sync conflict with pingdotgg/t3code" in:title' --json number --jq '.[0].number // empty')"
+          if [[ -n "$existing_issue" ]]; then
+            gh issue close "$existing_issue" --comment "Resolved cleanly in ${new_sha}." || true
+          fi
+
+          if [[ "$AUTO_RELEASE" != "true" ]]; then
+            echo "Merged cleanly (${new_sha}); auto_release=false so skipping tag."
+            exit 0
+          fi
+
+          # Use monotonic 3-part stable semver (v1.0.N) so electron-updater on the latest channel
+          # always treats each synced Athena build as newer than v0.1.x and prior v1.0.N builds.
+          last_patch="$(git tag -l 'v1.0.*' | sed -E 's/^v1\.0\.([0-9]+)$/\1/' | grep -E '^[0-9]+$' | sort -n | tail -n 1 || true)"
+          next_patch="$(( ${last_patch:-0} + 1 ))"
+          next_tag="v1.0.${next_patch}"
+
+          git tag "$next_tag" "$new_sha"
+          git push origin "$next_tag"
+
+          if [[ -z "$summary" ]]; then
+            summary="- Upstream updates"
+          fi
+          release_notes="$(printf '### Synced from `pingdotgg/t3code` (`%s`, %s new commit(s))\n%s' \
+            "$upstream_sha" \
+            "$behind_count" \
+            "$summary")"
+
+          echo "released=true" >> "$GITHUB_OUTPUT"
+          echo "tag=${next_tag}" >> "$GITHUB_OUTPUT"
+          echo "sha=${new_sha}" >> "$GITHUB_OUTPUT"
+          {
+            echo "notes<<EOF_ATHENA_RELEASE_NOTES"
+            echo "$release_notes"
+            echo "EOF_ATHENA_RELEASE_NOTES"
+          } >> "$GITHUB_OUTPUT"
+
+  release:
+    needs: sync
+    if: needs.sync.outputs.released == 'true'
+    uses: ./.github/workflows/athena-desktop-release.yml
+    with:
+      tag: ${{ needs.sync.outputs.tag }}
+      sha: ${{ needs.sync.outputs.sha }}
+      platform: both
+      notes: ${{ needs.sync.outputs.notes }}
+    secrets: inherit
