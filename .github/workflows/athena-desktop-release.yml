@@ -1,6 +1,9 @@
 name: Athena Desktop Release
 
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       tag:
@@ -22,7 +25,7 @@ permissions:
 
 jobs:
   build-windows:
-    if: inputs.platform == 'both' || inputs.platform == 'windows'
+    if: github.event_name == 'push' || inputs.platform == 'both' || inputs.platform == 'windows'
     name: Build Windows x64 (.exe)
     runs-on: windows-latest
     timeout-minutes: 45
@@ -66,25 +69,30 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: athena-windows-x64
-          path: release/*.exe
+          path: |
+            release/*.exe
+            release/*.blockmap
+            release/latest*.yml
           if-no-files-found: error
 
       - name: Upload to GitHub Release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
+          shopt -s nullglob
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" --target "${GITHUB_SHA}" --title "Athena ${RELEASE_TAG}" --notes "Athena desktop builds (Windows x64 + macOS Apple Silicon)." || true
           fi
-          gh release upload "$RELEASE_TAG" release/*.exe --clobber
+          files=(release/*.exe release/*.blockmap release/latest*.yml)
+          gh release upload "$RELEASE_TAG" "${files[@]}" --clobber
 
   build-macos:
-    if: inputs.platform == 'both' || inputs.platform == 'macos'
+    if: github.event_name == 'push' || inputs.platform == 'both' || inputs.platform == 'macos'
     name: Build macOS arm64 (.dmg)
-    runs-on: macos-15
+    runs-on: macos-latest
     timeout-minutes: 45
     steps:
       - name: Checkout
@@ -126,17 +134,23 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: athena-macos-arm64
-          path: release/*.dmg
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.blockmap
+            release/latest*.yml
           if-no-files-found: error
 
       - name: Upload to GitHub Release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
+          shopt -s nullglob
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             gh release create "$RELEASE_TAG" --target "${GITHUB_SHA}" --title "Athena ${RELEASE_TAG}" --notes "Athena desktop builds (Windows x64 + macOS Apple Silicon)." || true
           fi
-          gh release upload "$RELEASE_TAG" release/*.dmg --clobber
+          files=(release/*.dmg release/*.zip release/*.blockmap release/latest*.yml)
+          gh release upload "$RELEASE_TAG" "${files[@]}" --clobber
