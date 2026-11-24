@@ -148,7 +148,7 @@ export function SidebarSectionHeader(props: {
           ) : undefined
         }
         accessory={
-          <span className="inline-flex min-w-5 items-center justify-center rounded-md bg-black/[0.05] px-1.5 py-0.5 text-2xs font-medium tabular-nums text-sidebar-muted-foreground dark:bg-white/[0.06]">
+          <span className="inline-flex min-w-5 items-center justify-center rounded-full border border-border/50 bg-black/[0.05] px-1.5 py-0.5 text-2xs font-medium tabular-nums text-sidebar-muted-foreground dark:border-white/[0.07] dark:bg-white/[0.07]">
             {props.count}
           </span>
         }

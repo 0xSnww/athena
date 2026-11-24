@@ -67,7 +67,7 @@ export function SidebarThreadHeader({
           <span className="text-sm font-semibold tracking-tight text-sidebar-foreground">
             <T>Chats</T>
           </span>
-          <span className="inline-flex min-w-5 items-center justify-center rounded-md bg-black/[0.06] px-1.5 py-0.5 text-2xs font-medium tabular-nums text-sidebar-muted-foreground dark:bg-white/[0.07]">
+          <span className="inline-flex min-w-5 items-center justify-center rounded-full border border-border/50 bg-black/[0.05] px-1.5 py-0.5 text-2xs font-medium tabular-nums text-sidebar-muted-foreground dark:border-white/[0.08] dark:bg-white/[0.07]">
             {threadCount}
           </span>
         </div>
@@ -98,7 +98,7 @@ export function SidebarThreadHeader({
           </SidebarHeaderIconButton>
         </div>
       </div>
-      <div className="flex h-8 min-w-0 items-center gap-2 rounded-xl border border-border/50 bg-black/[0.035] px-2.5 text-xs text-sidebar-muted-foreground transition-colors hover:border-border/80 hover:text-sidebar-foreground focus-within:border-border focus-within:bg-black/[0.05] focus-within:text-sidebar-foreground focus-within:ring-1 focus-within:ring-inset focus-within:ring-ring/70 dark:border-white/[0.06] dark:bg-white/[0.04] dark:focus-within:bg-white/[0.06]">
+      <div className="flex h-8 min-w-0 items-center gap-2 rounded-full border border-border/55 bg-black/[0.04] px-3 text-xs text-sidebar-muted-foreground transition-colors hover:border-border/80 hover:text-sidebar-foreground focus-within:border-border focus-within:bg-black/[0.06] focus-within:text-sidebar-foreground focus-within:ring-1 focus-within:ring-inset focus-within:ring-ring/70 dark:border-white/[0.08] dark:bg-white/[0.05] dark:inset-shadow-2xs dark:inset-shadow-white/5 dark:focus-within:bg-white/[0.07]">
         <SearchIcon className="size-3.5 shrink-0 text-muted-foreground/70" />
         <SidebarInput
           ref={searchInputRef}
@@ -135,7 +135,7 @@ export function SidebarThreadHeader({
             <XIcon className="size-3" />
           </Button>
         ) : searchShortcutLabel ? (
-          <span className="shrink-0 text-3xs font-medium text-sidebar-muted-foreground/55">
+          <span className="shrink-0 rounded-full bg-black/[0.04] px-1.5 py-0.5 text-3xs font-medium text-sidebar-muted-foreground/60 dark:bg-white/[0.06]">
             {searchShortcutLabel}
           </span>
         ) : null}

@@ -147,6 +147,17 @@ export const GlassOpacity = Schema.Int.check(
 export type GlassOpacity = typeof GlassOpacity.Type;
 const DEFAULT_GLASS_OPACITY: GlassOpacity = 80;
 
+export const MIN_PANEL_GLASS_BLUR = 0;
+export const MAX_PANEL_GLASS_BLUR = 64;
+export const PanelGlassBlur = Schema.Int.check(
+  Schema.isBetween({
+    minimum: MIN_PANEL_GLASS_BLUR,
+    maximum: MAX_PANEL_GLASS_BLUR,
+  }),
+);
+export type PanelGlassBlur = typeof PanelGlassBlur.Type;
+const DEFAULT_PANEL_GLASS_BLUR: PanelGlassBlur = 28;
+
 export const MIN_APPEARANCE_CONTRAST = 50;
 export const MAX_APPEARANCE_CONTRAST = 200;
 export const AppearanceContrast = Schema.Int.check(
@@ -487,6 +498,9 @@ export const ClientSettingsSchema = Schema.Struct({
   ),
   glassOpacity: GlassOpacity.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_GLASS_OPACITY)),
+  ),
+  panelGlassBlur: PanelGlassBlur.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_PANEL_GLASS_BLUR)),
   ),
   fontSizeInterface: InterfaceFontSize.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_INTERFACE_FONT_SIZE)),
@@ -2102,6 +2116,7 @@ export const ClientSettingsPatch = Schema.Struct({
   diffLayout: Schema.optionalKey(DiffLayout),
   environmentIdentificationMode: Schema.optionalKey(EnvironmentIdentificationMode),
   glassOpacity: Schema.optionalKey(GlassOpacity),
+  panelGlassBlur: Schema.optionalKey(PanelGlassBlur),
   onboardingCompletedAt: Schema.optionalKey(Schema.NullOr(Schema.String)),
   fontSizeInterface: Schema.optionalKey(InterfaceFontSize),
   fontSizePrompt: Schema.optionalKey(PromptFontSize),

@@ -233,7 +233,7 @@ function SidebarProvider({
     <SidebarContext value={contextValue}>
       <div
         className={cn(
-          "group/sidebar-wrapper flex min-h-svh w-full bg-background",
+          "group/sidebar-wrapper relative flex min-h-svh w-full bg-background",
           SIDEBAR_TITLEBAR_CONTROL_SIZE,
           className,
         )}
@@ -653,7 +653,7 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
   return (
     <main
       className={cn(
-        "relative flex min-w-0 w-full flex-1 flex-col bg-background surface-grain",
+        "relative flex min-w-0 w-full flex-1 flex-col bg-background surface-grain [[data-athena-rail=true]_&]:bg-transparent [[data-athena-rail=true]_&]:bg-none",
         "md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ms-2 md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ms-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm/5",
         className,
       )}
@@ -768,7 +768,7 @@ const sidebarMenuButtonVariants = cva(
       size: {
         default:
           "h-8 rounded-[var(--control-radius)] px-[var(--sidebar-row-content-inset)] py-1.5 text-sm",
-        icon: "size-8 justify-center rounded-[var(--control-radius)] p-0",
+        icon: "size-8 justify-center rounded-full p-0",
         lg: "h-12 rounded-[var(--control-radius)] px-[var(--sidebar-row-content-inset)] py-2 text-sm group-data-[collapsible=icon]:p-0!",
         sm: "h-7 rounded-[var(--control-radius)] px-[var(--sidebar-row-content-inset)] py-2 text-xs",
       },

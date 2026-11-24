@@ -101,6 +101,9 @@ function startClientAppearance(): void {
         root.style.removeProperty("--glass-blur");
       }
     }
+    if (previous?.panelGlassBlur !== settings.panelGlassBlur) {
+      root.style.setProperty("--athena-panel-blur", `${settings.panelGlassBlur}px`);
+    }
     if (
       previous?.fontFamilySans !== settings.fontFamilySans ||
       previous.fontFamilyCode !== settings.fontFamilyCode ||

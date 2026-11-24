@@ -33,6 +33,7 @@ import { selectActiveRightPanel, useRightPanelStore } from "../rightPanelStore";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { cn, isMacPlatform } from "../lib/utils";
 import { primaryServerKeybindingsAtom } from "../state/server";
+import { AthenaDotBackdrop } from "./athena/AthenaDotBackdrop";
 import { AthenaFloatingRail } from "./athena/AthenaFloatingRail";
 import {
   PanelAnimationSuppressionProvider,
@@ -474,6 +475,7 @@ export function AppSidebarLayout({
         storageKey="athena_thread_sidebar_open"
         style={sidebarProviderStyle}
       >
+        {showAthenaRail ? <AthenaDotBackdrop /> : null}
         {showSidebar ? (
           <>
             <SidebarBrandWidthProbe isElectron={isElectron} onWidthChange={setBrandWidth} />

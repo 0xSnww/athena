@@ -26,7 +26,8 @@ export function ThreadDetailsSection({
       // collapses, and a divider only follows a section that has content.
       className={cn(
         "px-2 py-2 has-[>div:last-child:empty]:hidden",
-        separated && "border-border/60 [section:not(:has(>div:last-child:empty))~&]:border-t",
+        separated &&
+          "border-border/50 dark:border-white/[0.07] [section:not(:has(>div:last-child:empty))~&]:border-t",
       )}
     >
       <div

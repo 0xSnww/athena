@@ -10,9 +10,11 @@ import {
   MAX_APPEARANCE_CONTRAST,
   MAX_GLASS_OPACITY,
   MAX_PANEL_ANIMATION_DURATION_MS,
+  MAX_PANEL_GLASS_BLUR,
   MIN_APPEARANCE_CONTRAST,
   MIN_GLASS_OPACITY,
   MIN_PANEL_ANIMATION_DURATION_MS,
+  MIN_PANEL_GLASS_BLUR,
 } from "@t3tools/contracts/settings";
 import {
   resolveSidebarStageBackdropVariant,
@@ -131,6 +133,13 @@ export function AppearanceSettingsPanel() {
   const glassOpacitySliderStyle = {
     "--settings-slider-progress": `${glassOpacityRatio * 100}%`,
     "--settings-slider-fill-offset": `${0.5 - glassOpacityRatio}rem`,
+  } as CSSProperties;
+  const panelGlassBlurRatio =
+    (settings.panelGlassBlur - MIN_PANEL_GLASS_BLUR) /
+    (MAX_PANEL_GLASS_BLUR - MIN_PANEL_GLASS_BLUR);
+  const panelGlassBlurSliderStyle = {
+    "--settings-slider-progress": `${panelGlassBlurRatio * 100}%`,
+    "--settings-slider-fill-offset": `${0.5 - panelGlassBlurRatio}rem`,
   } as CSSProperties;
   const appearanceContrastRatio =
     (settings.appearanceContrast - MIN_APPEARANCE_CONTRAST) /
@@ -257,6 +266,52 @@ export function AppearanceSettingsPanel() {
                 style={glassOpacitySliderStyle}
                 type="range"
                 value={settings.glassOpacity}
+              />
+            </div>
+          }
+        />
+
+        <SettingsRow
+          {...searchableSetting("setting-panel-glass-blur")}
+          description={gt("Adjust the backdrop blur on the left sidebar and right-hand cards.")}
+          resetAction={
+            settings.panelGlassBlur !== DEFAULT_UNIFIED_SETTINGS.panelGlassBlur ? (
+              <SettingResetButton
+                ariaLabel={gt("Reset panel blur to default")}
+                onClick={() =>
+                  updateSettings({ panelGlassBlur: DEFAULT_UNIFIED_SETTINGS.panelGlassBlur })
+                }
+              />
+            ) : null
+          }
+          control={
+            <div className="flex w-full items-center gap-3 sm:w-52">
+              <output
+                className="min-w-12 rounded-md bg-muted px-2 py-1 text-center font-mono text-xs font-medium tabular-nums text-foreground"
+                htmlFor="panel-glass-blur"
+              >
+                {settings.panelGlassBlur}px
+              </output>
+              <input
+                aria-label={gt("Panel blur")}
+                className="settings-slider min-w-0 flex-1"
+                id="panel-glass-blur"
+                max={MAX_PANEL_GLASS_BLUR}
+                min={MIN_PANEL_GLASS_BLUR}
+                onChange={(event) => {
+                  const panelGlassBlur = Number(event.currentTarget.value);
+                  if (
+                    Number.isInteger(panelGlassBlur) &&
+                    panelGlassBlur >= MIN_PANEL_GLASS_BLUR &&
+                    panelGlassBlur <= MAX_PANEL_GLASS_BLUR
+                  ) {
+                    updateSettings({ panelGlassBlur });
+                  }
+                }}
+                step={2}
+                style={panelGlassBlurSliderStyle}
+                type="range"
+                value={settings.panelGlassBlur}
               />
             </div>
           }

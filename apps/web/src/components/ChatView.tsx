@@ -215,7 +215,6 @@ import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
 import { shortcutLabelForCommand } from "../keybindings";
 import { cn } from "~/lib/utils";
 import { AthenaComposerUsageRings } from "./athena/AthenaComposerUsageRings";
-import { AthenaDotBackdrop } from "./athena/AthenaDotBackdrop";
 import { toastManager } from "./ui/toast";
 import { projectScriptIdFromCommand } from "~/projectScripts";
 import { newMessageId } from "~/lib/utils";
@@ -3525,9 +3524,11 @@ export default function ChatView(props: ChatViewProps) {
   const content = (
     <div
       ref={setWorkspaceLayoutElement}
-      className="relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background"
+      className={cn(
+        "relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden",
+        embedded ? "bg-background" : "bg-transparent",
+      )}
     >
-      {embedded ? null : <AthenaDotBackdrop />}
       {embedded ? null : (
         <DeviceSetupDialogHost
           threadKey={activeThreadKey}
@@ -3953,9 +3954,7 @@ export default function ChatView(props: ChatViewProps) {
                                   (activeThreadShell ?? activeThread)?.pullRequests
                                 }
                                 onComposerOverlayHeightChange={publishComposerOverlayHeightStable}
-                                permissionsShownInStrip={
-                                  showComposerContextStrip && !isServerThread
-                                }
+                                permissionsShownInStrip={showComposerContextStrip}
                                 promptRef={promptRef}
                                 composerImagesRef={composerImagesRef}
                                 composerFilesRef={composerFilesRef}
@@ -4053,29 +4052,34 @@ export default function ChatView(props: ChatViewProps) {
                                   availableEnvironments={logicalProjectEnvironments}
                                   alwaysShowEnvironmentIndicator={isServerThread}
                                   trailing={
-                                    isServerThread ? (
-                                      <AthenaComposerUsageRings
-                                        providerInstanceId={activeProviderInstanceId}
-                                        model={activeUsageModel}
-                                        providers={providerStatuses}
-                                        sources={
-                                          serverConfig?.usageLimitSources ??
-                                          EMPTY_USAGE_LIMIT_SOURCES
-                                        }
-                                        contextWindow={activeContextWindow}
-                                      />
-                                    ) : (
+                                    <>
                                       <ComposerContextPermissions
                                         environmentId={environmentId}
                                         runtimeMode={runtimeMode}
-                                        supportedRuntimeModes={draftSupportedRuntimeModes(
-                                          activeProviderStatus?.supportedRuntimeModes,
-                                          multipleModelSelections,
-                                          providerStatuses,
-                                        )}
+                                        supportedRuntimeModes={
+                                          isServerThread
+                                            ? activeProviderStatus?.supportedRuntimeModes
+                                            : draftSupportedRuntimeModes(
+                                                activeProviderStatus?.supportedRuntimeModes,
+                                                multipleModelSelections,
+                                                providerStatuses,
+                                              )
+                                        }
                                         onRuntimeModeChange={handleRuntimeModeChangeStable}
                                       />
-                                    )
+                                      {isServerThread ? (
+                                        <AthenaComposerUsageRings
+                                          providerInstanceId={activeProviderInstanceId}
+                                          model={activeUsageModel}
+                                          providers={providerStatuses}
+                                          sources={
+                                            serverConfig?.usageLimitSources ??
+                                            EMPTY_USAGE_LIMIT_SOURCES
+                                          }
+                                          contextWindow={activeContextWindow}
+                                        />
+                                      ) : null}
+                                    </>
                                   }
                                 />
                               </div>

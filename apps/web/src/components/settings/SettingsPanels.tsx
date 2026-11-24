@@ -508,6 +508,9 @@ export function useSettingsRestore(onRestored?: () => void) {
     ...(settings.glassOpacity !== DEFAULT_UNIFIED_SETTINGS.glassOpacity
       ? [gt("Glass opacity")]
       : []),
+    ...(settings.panelGlassBlur !== DEFAULT_UNIFIED_SETTINGS.panelGlassBlur
+      ? [gt("Panel blur")]
+      : []),
     ...(settings.diffColorScheme !== DEFAULT_UNIFIED_SETTINGS.diffColorScheme
       ? [gt("Diff colors")]
       : []),
@@ -731,6 +734,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       screenReaderWindowTitle: DEFAULT_UNIFIED_SETTINGS.screenReaderWindowTitle,
       environmentIdentificationMode: DEFAULT_UNIFIED_SETTINGS.environmentIdentificationMode,
       glassOpacity: DEFAULT_UNIFIED_SETTINGS.glassOpacity,
+      panelGlassBlur: DEFAULT_UNIFIED_SETTINGS.panelGlassBlur,
       panelAnimationDurationMs: DEFAULT_UNIFIED_SETTINGS.panelAnimationDurationMs,
       sidebarProjectGroupingMode: DEFAULT_UNIFIED_SETTINGS.sidebarProjectGroupingMode,
       sidebarProjectSortOrder: DEFAULT_UNIFIED_SETTINGS.sidebarProjectSortOrder,

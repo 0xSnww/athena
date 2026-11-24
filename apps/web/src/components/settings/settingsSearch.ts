@@ -367,6 +367,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [msg("transparent transparency solid menus dialogs composer")],
   },
   {
+    // Prefixed because the slider control already owns the `panel-glass-blur` id.
+    id: "setting-panel-glass-blur",
+    title: msg("Panel blur"),
+    to: "/settings/appearance",
+    searchTerms: [msg("blur frost acrylic sidebar right cards panels backdrop")],
+  },
+  {
     id: "diff-color-scheme",
     title: msg("Diff colors"),
     to: "/settings/diffs",

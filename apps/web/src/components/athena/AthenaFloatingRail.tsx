@@ -92,7 +92,7 @@ export function AthenaFloatingRail() {
         className="pointer-events-none fixed top-[var(--workspace-controls-top)] left-[var(--workspace-controls-left)] z-40 flex h-[var(--workspace-topbar-height)] items-center [-webkit-app-region:no-drag]"
         data-athena-history-controls
       >
-        <div className="pointer-events-auto inline-flex items-center gap-0.5 rounded-full border border-border/60 bg-black/[0.03] p-0.5 dark:border-white/[0.07] dark:bg-white/[0.04]">
+        <div className="athena-floating-pill pointer-events-auto inline-flex items-center gap-0.5 rounded-full p-0.5">
           <Tooltip>
             <TooltipTrigger
               render={
@@ -131,7 +131,7 @@ export function AthenaFloatingRail() {
       <nav
         aria-label={gt("Quick navigation")}
         data-athena-floating-dock
-        className="athena-floating-card pointer-events-auto fixed top-[calc(var(--workspace-topbar-height)+4px)] left-3 z-40 flex flex-col items-center gap-1 rounded-2xl p-1.5 [-webkit-app-region:no-drag]"
+        className="athena-floating-pill pointer-events-auto fixed top-[calc(var(--workspace-topbar-height)+4px)] left-3 z-40 flex flex-col items-center gap-1 rounded-full p-1.5 [-webkit-app-region:no-drag]"
       >
         <Tooltip>
           <TooltipTrigger
@@ -142,8 +142,8 @@ export function AthenaFloatingRail() {
                 aria-label={gt("Toggle main sidebar")}
                 onClick={toggleSidebar}
                 className={cn(
-                  "inline-flex size-8 cursor-pointer items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-                  open && "bg-black/[0.07] text-foreground dark:bg-white/[0.09]",
+                  "inline-flex size-8 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                  open && "bg-black/[0.07] text-foreground dark:bg-white/[0.11]",
                 )}
               />
             }
@@ -164,12 +164,12 @@ export function AthenaFloatingRail() {
                     : gt("Projects")
                 }
                 onClick={() => setOpen(true)}
-                className="inline-flex size-8 cursor-pointer items-center justify-center rounded-xl bg-black/[0.04] transition-colors hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring dark:bg-white/[0.06]"
+                className="inline-flex size-8 cursor-pointer items-center justify-center rounded-full bg-black/[0.04] transition-colors hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring dark:bg-white/[0.07]"
               />
             }
           >
             {activeProject ? (
-              <ProjectFavicon project={activeProject} className="size-5 rounded-md" />
+              <ProjectFavicon project={activeProject} className="size-5 rounded-full" />
             ) : (
               <FolderCodeIcon className="size-4 text-muted-foreground" />
             )}
@@ -187,7 +187,7 @@ export function AthenaFloatingRail() {
                   type="button"
                   aria-label={gt("Add project")}
                   onClick={() => openCommandPalette({ open: "add-project" })}
-                  className="inline-flex size-8 cursor-pointer items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  className="inline-flex size-8 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                 />
               }
             >
@@ -203,7 +203,7 @@ export function AthenaFloatingRail() {
                   type="button"
                   aria-label={gt("New thread")}
                   onClick={startNewThread}
-                  className="inline-flex size-8 cursor-pointer items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  className="inline-flex size-8 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                 />
               }
             >
@@ -222,7 +222,7 @@ export function AthenaFloatingRail() {
                 type="button"
                 aria-label={gt("Settings")}
                 onClick={() => void navigate({ to: "/settings" })}
-                className="inline-flex size-8 cursor-pointer items-center justify-center rounded-full border border-border/80 bg-card text-foreground shadow-md transition-transform hover:scale-105 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring dark:border-white/15 dark:bg-message"
+                className="athena-floating-pill inline-flex size-8 cursor-pointer items-center justify-center rounded-full text-foreground transition-transform hover:scale-105 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
               />
             }
           >

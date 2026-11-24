@@ -1039,7 +1039,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       !props.isActive &&
       "[&:not(:hover):not(:focus-within)_*:not(.live-activity-focus_*)]:text-secondary-label",
     props.isActive
-      ? "border-border/75 bg-black/[0.045] text-sidebar-foreground dark:border-white/[0.08] dark:bg-white/[0.055]"
+      ? "border-border/75 bg-black/[0.05] text-sidebar-foreground dark:border-white/[0.10] dark:bg-white/[0.08] dark:inset-shadow-2xs dark:inset-shadow-white/8"
       : isSelected || props.sweepAction !== null
         ? "border-border/60 bg-sidebar-row-selected text-sidebar-foreground dark:border-white/[0.07]"
         : hasUnsentDraft
@@ -1081,7 +1081,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     destinationVerb !== null ? (
       <span
         role="status"
-        className="pointer-events-none ml-auto inline-flex h-5 shrink-0 items-center gap-1 rounded-sm border border-primary/40 bg-primary/10 px-1.5 text-2xs font-medium text-primary"
+        className="pointer-events-none ml-auto inline-flex h-5 shrink-0 items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 text-2xs font-medium text-primary"
       >
         {dropVerbBadge[destinationVerb]}
       </span>
@@ -1897,7 +1897,7 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
                 );
               }}
               className={cn(
-                "group/sidebar-row group/v2-row flex min-h-9 w-full cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-1 text-left text-sm outline-none",
+                "group/sidebar-row group/v2-row flex min-h-9 w-full cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-1 text-left text-sm outline-none",
                 props.isHighlighted || props.isRouteActive
                   ? "bg-sidebar-row-active text-sidebar-foreground"
                   : "text-sidebar-muted-foreground/75 hover:bg-sidebar-row-hover hover:text-sidebar-foreground",

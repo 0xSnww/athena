@@ -3091,7 +3091,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       <SidebarChromeHeader isElectron={isElectron} />
       <div
         data-athena-sidebar-card=""
-        className="flex min-h-0 flex-1 flex-col overflow-hidden md:athena-floating-card md:mt-1 md:mr-2 md:mb-3 md:ml-0 md:rounded-2xl"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden md:athena-sidebar-acrylic md:mt-1 md:mr-2 md:mb-3 md:ml-0 md:rounded-2xl"
       >
         <SidebarContent
           ref={sidebarContentRef}

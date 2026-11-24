@@ -117,16 +117,16 @@ export function ThreadDetailsCard({
   const card = (
     <div
       className={cn(
-        "isolate grid max-h-full grid-rows-[minmax(0,1fr)]",
+        "grid max-h-full grid-rows-[minmax(0,1fr)]",
         mode === "popover"
-          ? "dropdown-glass contain-paint max-h-[min(calc(100dvh-6.5rem),calc(var(--available-height,100dvh)-1rem))] overflow-hidden rounded-2xl"
+          ? "isolate dropdown-glass contain-paint max-h-[min(calc(100dvh-6.5rem),calc(var(--available-height,100dvh)-1rem))] overflow-hidden rounded-2xl"
           : "overflow-visible bg-transparent",
       )}
       style={placement ? { maxHeight: height } : undefined}
       onContextMenu={onContextMenu}
       data-thread-details-card
     >
-      <ScrollArea scrollFade className="min-h-0">
+      <ScrollArea scrollFade={mode === "popover"} className="min-h-0">
         <div ref={setContentElement}>{children(density, mode)}</div>
       </ScrollArea>
     </div>

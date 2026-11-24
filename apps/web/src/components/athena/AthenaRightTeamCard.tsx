@@ -1073,8 +1073,8 @@ export function AthenaRightTeamCard(props: AthenaRightTeamCardProps) {
       className="athena-floating-card overflow-hidden rounded-2xl p-2"
       data-athena-right-team-card=""
     >
-      <div className="flex items-center gap-2.5 rounded-xl border border-border/75 bg-black/[0.03] px-2.5 py-2 dark:border-white/[0.07] dark:bg-white/[0.035]">
-        <AthenaAgentBadge size="sm" />
+      <div className="flex items-center gap-2.5 rounded-full border border-border/70 bg-black/[0.035] px-2.5 py-1.5 backdrop-blur-md dark:border-white/[0.09] dark:bg-white/[0.05] dark:inset-shadow-2xs dark:inset-shadow-white/6">
+        <AthenaAgentBadge size="sm" threadRef={ref} />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-baseline gap-1 text-xs leading-tight">
             <span className="truncate font-semibold text-foreground">
@@ -1161,7 +1161,7 @@ export function AthenaRightTeamCard(props: AthenaRightTeamCardProps) {
                         type="button"
                         aria-label={quickActionLabel}
                         onClick={quickAction}
-                        className="inline-flex size-5 cursor-pointer items-center justify-center rounded text-muted-foreground/75 transition-colors hover:bg-accent hover:text-foreground"
+                        className="inline-flex size-5 cursor-pointer items-center justify-center rounded-full text-muted-foreground/75 transition-colors hover:bg-accent hover:text-foreground"
                       >
                         <PlusIcon className="size-3" />
                       </button>
@@ -1177,7 +1177,7 @@ export function AthenaRightTeamCard(props: AthenaRightTeamCardProps) {
                     <button
                       type="button"
                       aria-label={gt("Agent team options")}
-                      className="inline-flex size-5 cursor-pointer items-center justify-center rounded text-muted-foreground/75 transition-colors hover:bg-accent hover:text-foreground"
+                      className="inline-flex size-5 cursor-pointer items-center justify-center rounded-full text-muted-foreground/75 transition-colors hover:bg-accent hover:text-foreground"
                     >
                       <EllipsisIcon className="size-3" />
                     </button>

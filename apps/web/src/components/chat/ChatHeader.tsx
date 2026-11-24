@@ -267,7 +267,7 @@ export const ChatHeader = memo(function ChatHeader({
     >
       <div className="flex w-full min-w-0 items-center justify-between gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          <AthenaAgentBadge size="sm" />
+          <AthenaAgentBadge size="sm" threadRef={activeThreadRef} />
           <WorkspaceBreadcrumb
             ariaLabel={gt("Thread breadcrumb")}
             className="min-w-0 flex-1 overflow-clip [overflow-clip-margin:2px] [&_ol]:gap-1.5"
@@ -284,7 +284,7 @@ export const ChatHeader = memo(function ChatHeader({
                             title: parentThreadLink.title,
                           })}
                           onClick={() => onOpenThread(parentThreadLink.threadId)}
-                          className="inline-flex min-w-0 max-w-full cursor-pointer items-center rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                          className="inline-flex min-w-0 max-w-full cursor-pointer items-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                         />
                       }
                     >
@@ -428,7 +428,7 @@ export const ChatHeader = memo(function ChatHeader({
                     aria-label={gt("More thread actions")}
                     aria-haspopup="menu"
                     onClick={openMenuFromTitle}
-                    className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground/75 transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                    className="inline-flex size-7 items-center justify-center rounded-full text-muted-foreground/75 transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                   >
                     <MoreHorizontalIcon className="size-4" />
                   </button>

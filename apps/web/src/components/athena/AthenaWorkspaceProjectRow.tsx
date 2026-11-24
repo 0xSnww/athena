@@ -91,7 +91,7 @@ export function AthenaWorkspaceProjectRow(props: AthenaWorkspaceProjectRowProps)
   return (
     <div
       className={cn(
-        "flex h-8 w-full min-w-0 items-center rounded-lg",
+        "flex h-8 w-full min-w-0 items-center rounded-xl",
         THREAD_DETAILS_PANEL_ROW_CONTENT_CLASS,
       )}
       data-athena-workspace-project-row=""

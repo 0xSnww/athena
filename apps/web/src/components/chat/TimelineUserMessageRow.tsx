@@ -143,7 +143,7 @@ function UserFileCard({
   return (
     <div
       data-markdown-copy={copyMarkdown}
-      className="flex w-64 max-w-full items-center gap-1 rounded-2xl bg-message py-2 ps-2 pe-1 text-message-foreground"
+      className="flex w-64 max-w-full items-center gap-1 rounded-2xl border border-border/65 bg-message/80 py-2 ps-2 pe-1 text-message-foreground backdrop-blur-md dark:border-white/[0.08] dark:bg-message/62"
     >
       {file.downloadable === false ? (
         <>
@@ -947,7 +947,7 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
             : !mediaOnly &&
                 !fileCardsOnly &&
                 !audioOnly &&
-                "border border-border/75 bg-message dark:border-white/[0.07]",
+                "border border-border/70 bg-message/80 backdrop-blur-md dark:border-white/[0.08] dark:bg-message/62 dark:inset-shadow-2xs dark:inset-shadow-white/6",
           !folded && !mediaOnly && !fileCardsOnly && !audioOnly && "px-4 py-2.5",
           folded && expanded && "w-full",
         )}

@@ -205,7 +205,7 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
 
 export const SidebarChromeFooter = memo(function SidebarChromeFooter() {
   return (
-    <div className="border-t border-border/50 dark:border-white/[0.06]">
+    <div className="border-t border-border/45 dark:border-white/[0.07]">
       <SidebarFooter>
         <SidebarProviderUpdatePill />
         <SidebarUpdateArchitectureWarning />
