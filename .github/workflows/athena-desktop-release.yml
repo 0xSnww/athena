@@ -7,12 +7,22 @@ on:
         description: "GitHub release tag to create or upload installers to (e.g. v0.1.11-athena.1)"
         required: true
         type: string
+      platform:
+        description: "Which platform(s) to build"
+        required: false
+        default: "both"
+        type: choice
+        options:
+          - both
+          - windows
+          - macos
 
 permissions:
   contents: write
 
 jobs:
   build-windows:
+    if: inputs.platform == 'both' || inputs.platform == 'windows'
     name: Build Windows x64 (.exe)
     runs-on: windows-latest
     timeout-minutes: 45
@@ -72,6 +82,7 @@ jobs:
           gh release upload "$RELEASE_TAG" release/*.exe --clobber
 
   build-macos:
+    if: inputs.platform == 'both' || inputs.platform == 'macos'
     name: Build macOS arm64 (.dmg)
     runs-on: macos-15
     timeout-minutes: 45
