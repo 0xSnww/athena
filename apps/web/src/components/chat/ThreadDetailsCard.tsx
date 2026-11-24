@@ -34,7 +34,7 @@ export function ThreadDetailsCard({
   /** Changes when the set of rendered items changes, so cached heights are measured again. */
   contentKey: string;
   onContextMenu?: MouseEventHandler<HTMLDivElement>;
-  children: (density: "full" | "compact" | "essential") => ReactNode;
+  children: (density: "full" | "compact" | "essential", mode: "inline" | "popover") => ReactNode;
 }) {
   const gt = useGT();
   const detailsArea = workspaceAreaProps("details", 3, gt("Thread details"));
@@ -83,7 +83,7 @@ export function ThreadDetailsCard({
       // PR lists, servers, lineage, side chats and automations scroll as they grow. Counting them
       // toward density would hide the section and workspace controls when the user asks to see more.
       const lists = element.querySelectorAll<HTMLElement>(
-        "[data-thread-relationships-panel], [data-thread-side-chats-panel], [data-thread-details-pr-list], [data-thread-automations-panel], [data-thread-details-server-overflow]",
+        "[data-thread-relationships-panel], [data-thread-side-chats-panel], [data-thread-details-pr-list], [data-thread-automations-panel], [data-thread-details-server-overflow], [data-athena-right-team-card]",
       );
       const fittingHeight =
         next - Array.from(lists).reduce((sum, list) => sum + list.offsetHeight, 0);
@@ -117,16 +117,17 @@ export function ThreadDetailsCard({
   const card = (
     <div
       className={cn(
-        "dropdown-glass isolate contain-paint grid max-h-full grid-rows-[minmax(0,1fr)] overflow-hidden rounded-2xl",
-        mode === "popover" &&
-          "max-h-[min(calc(100dvh-6.5rem),calc(var(--available-height,100dvh)-1rem))]",
+        "isolate grid max-h-full grid-rows-[minmax(0,1fr)]",
+        mode === "popover"
+          ? "dropdown-glass contain-paint max-h-[min(calc(100dvh-6.5rem),calc(var(--available-height,100dvh)-1rem))] overflow-hidden rounded-2xl"
+          : "overflow-visible bg-transparent",
       )}
       style={placement ? { maxHeight: height } : undefined}
       onContextMenu={onContextMenu}
       data-thread-details-card
     >
       <ScrollArea scrollFade className="min-h-0">
-        <div ref={setContentElement}>{children(density)}</div>
+        <div ref={setContentElement}>{children(density, mode)}</div>
       </ScrollArea>
     </div>
   );

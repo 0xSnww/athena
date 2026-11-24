@@ -13,15 +13,23 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import { isLoopbackHost } from "@t3tools/shared/preview";
-import { T, useGT, Var } from "gt-react";
+import { msg, T, useGT, Var } from "gt-react";
 import { m } from "~/i18n/messages";
-import { CableIcon, GlobeIcon, SquareIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
-import { type MouseEvent, useState } from "react";
+import {
+  CableIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  CopyIcon,
+  SquareIcon,
+} from "lucide-react";
+import { type MouseEvent, useRef, useState } from "react";
 
 import {
   resolveExternalServerUrl,
   tunnelsEnvironmentLoopback,
 } from "../../browser/browserTargetResolver";
+import { writeTextToClipboard } from "../../hooks/useCopyToClipboard";
 import { readLocalApi } from "../../localApi";
 import { cn, isMacPlatform } from "../../lib/utils";
 import { useThreadDiscoveredPorts } from "../../portDiscoveryState";
@@ -38,6 +46,7 @@ import {
 import { previewEnvironment } from "../../state/preview";
 import { useEnvironmentScope } from "../../state/session";
 import { useAtomCommand } from "../../state/use-atom-command";
+import { AthenaPortIcon, resolvePortPresentation } from "../athena/AthenaPortIcon";
 import { openDiscoveredPort } from "../preview/openDiscoveredPort";
 import { Spinner } from "../ui/spinner";
 import { stackedThreadToast, toastManager } from "../ui/toast";
@@ -82,7 +91,9 @@ function ThreadServersList(props: ThreadServersPanelProps) {
   });
   const [stoppingKey, setStoppingKey] = useState<string | null>(null);
   const [forwardingPort, setForwardingPort] = useState<number | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(SERVER_PAGE_COUNT);
+  const copiedTimerRef = useRef<number | null>(null);
 
   if (servers.length === 0) return null;
   const externalClickLabel = isMacPlatform(navigator.platform) ? "⌘-click" : "Ctrl-click";
@@ -172,17 +183,43 @@ function ThreadServersList(props: ThreadServersPanelProps) {
     setForwardingPort(null);
   };
 
+  const copyServerUrl = async (server: DiscoveredLocalServer, urlToCopy: string) => {
+    const key = serverKey(server);
+    await writeTextToClipboard(urlToCopy, {
+      target: "server url",
+      unavailableMessage: msg("Clipboard API is unavailable while copying server URL."),
+      failureMessage: msg("Failed to copy server URL to the clipboard."),
+    }).then(
+      () => {
+        if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current);
+        setCopiedKey(key);
+        copiedTimerRef.current = window.setTimeout(() => {
+          setCopiedKey((current) => (current === key ? null : current));
+        }, 1600);
+      },
+      (error: unknown) => reportFailure(gt("Could not copy URL"), error),
+    );
+  };
+
   return (
     <ThreadDetailsSection
       headingId="thread-details-servers-heading"
-      title={gt("Servers", { $context: "thread details section: running dev servers" })}
+      title={gt("Ports", { $context: "thread details section: running dev server ports" })}
     >
-      <ul className="m-0 list-none p-0">
+      <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
         {servers.slice(0, visibleCount).map((server, index) => {
           const key = serverKey(server);
           const stoppable = canStop && supportsStop && server.pid !== null;
           const forward = findPortForward(forwards, props.environmentId, server.port);
-          const actionCount = Number(stoppable) + Number(canForward);
+          const presentation = resolvePortPresentation(server.processName);
+          const displayName =
+            presentation.brand ??
+            (server.terminal === null ? gt("Agent server") : gt("Local server"));
+          const copyTargetUrl = forward
+            ? forwardedUrl(forward, server.url)
+            : resolveExternalServerUrl(props.environmentId, server.url);
+          const actionCount = 1 + Number(stoppable) + Number(canForward);
+          const hidePortOnHover = !forward && actionCount > 0;
           return (
             <li
               key={key}
@@ -197,41 +234,38 @@ function ThreadServersList(props: ThreadServersPanelProps) {
                       size="sm"
                       variant="ghost"
                       part="row"
-                      multiline
                       disabled={!canOpen}
                       onClick={(event) => void open(server, event)}
                       onAuxClick={(event) => void open(server, event)}
                     />
                   }
                 >
-                  <GlobeIcon aria-hidden className={THREAD_DETAILS_PANEL_ICON_CLASS} />
-                  {/* The end padding keeps text clear of the stop button. */}
+                  <AthenaPortIcon
+                    processName={server.processName}
+                    className={THREAD_DETAILS_PANEL_ICON_CLASS}
+                  />
                   <span
                     className={cn(
-                      "flex min-w-0 flex-1 flex-col gap-0.5",
-                      actionCount === 1 && "pe-6",
-                      actionCount === 2 && "pe-12",
+                      "flex min-w-0 flex-1 items-center justify-between gap-2",
+                      forward && "pe-7",
                     )}
                   >
-                    <span className="truncate text-sm font-medium leading-4 text-foreground/85">
-                      localhost:{server.port}
+                    <span className="truncate text-xs font-medium leading-4 text-foreground/85">
+                      {displayName}
                     </span>
-                    <span className="truncate text-2xs font-normal leading-4 text-muted-foreground">
-                      {[
-                        // First, so the narrow panel truncates the less useful parts.
-                        forward
-                          ? gt("Forwarded to :{port}", {
-                              $context: "a remote dev server reachable on this machine's port",
-                              port: forward.localPort,
-                            })
-                          : null,
-                        server.terminal === null
-                          ? gt("Agent", { $context: "who started a dev server" })
-                          : gt("Terminal", { $context: "who started a dev server" }),
-                        server.processName,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
+                    <span
+                      className={cn(
+                        "shrink-0 font-mono text-2xs tabular-nums leading-4 text-muted-foreground/75 transition-opacity",
+                        hidePortOnHover &&
+                          "group-hover:opacity-0 group-focus-within:opacity-0 pointer-coarse:opacity-0 [@media(hover:none)]:opacity-0",
+                      )}
+                    >
+                      {forward
+                        ? gt(":{port} → :{localPort}", {
+                            port: server.port,
+                            localPort: forward.localPort,
+                          })
+                        : `:${server.port}`}
                     </span>
                   </span>
                 </TooltipTrigger>
@@ -241,85 +275,112 @@ function ThreadServersList(props: ThreadServersPanelProps) {
                   </T>
                 </TooltipPopup>
               </Tooltip>
-              {actionCount > 0 ? (
-                <div
+              <div
+                className={cn(
+                  "absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 transition-opacity",
+                  // A forward stays visible: it holds a port on this machine.
+                  !forward &&
+                    "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100",
+                )}
+              >
+                <span
                   className={cn(
-                    "absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5",
-                    // A forward stays visible: it holds a port on this machine.
-                    !forward &&
-                      "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100",
+                    forward &&
+                      "pointer-events-none opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100",
                   )}
                 >
-                  {canForward ? (
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={
-                          <ThreadDetailsControl
-                            size="icon-xs"
-                            variant="ghost"
-                            part="icon"
-                            aria-pressed={forward !== undefined}
-                            aria-label={
-                              forward
-                                ? gt("Stop forwarding localhost:{port}", { port: server.port })
-                                : gt("Forward localhost:{port} to this machine", {
-                                    port: server.port,
-                                  })
-                            }
-                            disabled={forwardingPort !== null}
-                            onClick={() => void toggleForward(server, forward !== undefined)}
-                          />
-                        }
-                      >
-                        {forwardingPort === server.port ? (
-                          <Spinner aria-hidden size="xs" />
-                        ) : (
-                          <CableIcon
-                            aria-hidden
-                            className={cn("size-3.5", forward && "text-primary")}
-                          />
-                        )}
-                      </TooltipTrigger>
-                      <TooltipPopup side="left">
-                        {forward ? (
-                          <T>
-                            Forwarded to localhost:<Var>{forward.localPort}</Var> on this machine.
-                            Click to stop.
-                          </T>
-                        ) : (
-                          <T>Forward to this machine, for any app here</T>
-                        )}
-                      </TooltipPopup>
-                    </Tooltip>
-                  ) : null}
-                  {stoppable ? (
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={
-                          <ThreadDetailsControl
-                            size="icon-xs"
-                            variant="ghost"
-                            part="icon"
-                            tone="destructive"
-                            aria-label={gt("Stop localhost:{port}", { port: server.port })}
-                            disabled={stoppingKey !== null}
-                            onClick={() => void stop(server)}
-                          />
-                        }
-                      >
-                        {stoppingKey === key ? (
-                          <Spinner aria-hidden size="xs" />
-                        ) : (
-                          <SquareIcon aria-hidden className="size-3 fill-current" />
-                        )}
-                      </TooltipTrigger>
-                      <TooltipPopup side="left">
-                        <T>Stop server</T>
-                      </TooltipPopup>
-                    </Tooltip>
-                  ) : null}
-                </div>
-              ) : null}
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <ThreadDetailsControl
+                          size="icon-xs"
+                          variant="ghost"
+                          part="icon"
+                          aria-label={gt("Copy URL for port {port}", { port: server.port })}
+                          onClick={() => void copyServerUrl(server, copyTargetUrl)}
+                        />
+                      }
+                    >
+                      {copiedKey === key ? (
+                        <CheckIcon aria-hidden className="size-3.5 text-success" />
+                      ) : (
+                        <CopyIcon aria-hidden className="size-3.5" />
+                      )}
+                    </TooltipTrigger>
+                    <TooltipPopup side="left">
+                      {copiedKey === key ? <T>Copied URL</T> : <T>Copy URL</T>}
+                    </TooltipPopup>
+                  </Tooltip>
+                </span>
+                {canForward ? (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <ThreadDetailsControl
+                          size="icon-xs"
+                          variant="ghost"
+                          part="icon"
+                          aria-pressed={forward !== undefined}
+                          aria-label={
+                            forward
+                              ? gt("Stop forwarding localhost:{port}", { port: server.port })
+                              : gt("Forward localhost:{port} to this machine", {
+                                  port: server.port,
+                                })
+                          }
+                          disabled={forwardingPort !== null}
+                          onClick={() => void toggleForward(server, forward !== undefined)}
+                        />
+                      }
+                    >
+                      {forwardingPort === server.port ? (
+                        <Spinner aria-hidden size="xs" />
+                      ) : (
+                        <CableIcon
+                          aria-hidden
+                          className={cn("size-3.5", forward && "text-primary")}
+                        />
+                      )}
+                    </TooltipTrigger>
+                    <TooltipPopup side="left">
+                      {forward ? (
+                        <T>
+                          Forwarded to localhost:<Var>{forward.localPort}</Var> on this machine.
+                          Click to stop.
+                        </T>
+                      ) : (
+                        <T>Forward to this machine, for any app here</T>
+                      )}
+                    </TooltipPopup>
+                  </Tooltip>
+                ) : null}
+                {stoppable ? (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <ThreadDetailsControl
+                          size="icon-xs"
+                          variant="ghost"
+                          part="icon"
+                          tone="destructive"
+                          aria-label={gt("Stop localhost:{port}", { port: server.port })}
+                          disabled={stoppingKey !== null}
+                          onClick={() => void stop(server)}
+                        />
+                      }
+                    >
+                      {stoppingKey === key ? (
+                        <Spinner aria-hidden size="xs" />
+                      ) : (
+                        <SquareIcon aria-hidden className="size-3 fill-current" />
+                      )}
+                    </TooltipTrigger>
+                    <TooltipPopup side="left">
+                      <T>Stop server</T>
+                    </TooltipPopup>
+                  </Tooltip>
+                ) : null}
+              </div>
             </li>
           );
         })}
@@ -333,12 +394,12 @@ function ThreadServersList(props: ThreadServersPanelProps) {
           }
           part="row"
           tone="muted"
-          className="w-full active:scale-100"
+          className="mt-0.5 w-full active:scale-100"
         >
           {hiddenCount > 0 ? (
-            <ChevronDownIcon aria-hidden className="size-4 shrink-0" />
+            <ChevronDownIcon aria-hidden className="size-3.5 shrink-0" />
           ) : (
-            <ChevronUpIcon aria-hidden className="size-4 shrink-0" />
+            <ChevronUpIcon aria-hidden className="size-3.5 shrink-0" />
           )}
           {hiddenCount > 0 ? (
             <T>

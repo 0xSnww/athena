@@ -938,14 +938,17 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
       ) : null}
       <div
         className={cn(
-          "relative min-w-0 max-w-[80%] rounded-2xl text-message-foreground",
+          "relative min-w-0 max-w-[80%] rounded-3xl text-message-foreground",
           (mediaAboveText || row.groupedWithPrevious) && "rounded-tr-md",
           row.groupedWithNext && "rounded-br-md",
           BUBBLE_CHIP_CLASS_NAME,
           userMessage.attribution === "guest"
             ? guestBubbleClassName(false)
-            : !mediaOnly && !fileCardsOnly && !audioOnly && "bg-message",
-          !folded && !mediaOnly && !fileCardsOnly && !audioOnly && "p-3",
+            : !mediaOnly &&
+                !fileCardsOnly &&
+                !audioOnly &&
+                "border border-border/75 bg-message dark:border-white/[0.07]",
+          !folded && !mediaOnly && !fileCardsOnly && !audioOnly && "px-4 py-2.5",
           folded && expanded && "w-full",
         )}
         data-user-message-bubble=""

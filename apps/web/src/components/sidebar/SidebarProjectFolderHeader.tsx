@@ -71,7 +71,7 @@ export const SidebarProjectFolderHeader = memo(function SidebarProjectFolderHead
   return (
     <li
       data-testid="sidebar-project-folder"
-      className="group/project-folder relative mt-2 list-none first:mt-0"
+      className="group/project-folder relative mt-2.5 list-none first:mt-0.5"
     >
       <button
         type="button"
@@ -86,10 +86,10 @@ export const SidebarProjectFolderHeader = memo(function SidebarProjectFolderHead
             contextMenuSourceOf(event),
           );
         }}
-        className="flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-(--control-radius) px-(--sidebar-row-content-inset) text-left outline-none hover:bg-sidebar-row-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="flex h-7 w-full cursor-pointer items-center gap-2 rounded-lg px-2 text-left outline-none transition-colors hover:bg-sidebar-row-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
-        <ProjectFavicon project={group} className="size-4 shrink-0" />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-sidebar-foreground/90">
+        <ProjectFavicon project={group} className="size-3.5 shrink-0 rounded-sm" />
+        <span className="min-w-0 flex-1 truncate text-xs font-medium tracking-tight text-sidebar-foreground/85">
           {group.displayName}
         </span>
         {dot ? (
@@ -98,14 +98,14 @@ export const SidebarProjectFolderHeader = memo(function SidebarProjectFolderHead
           </span>
         ) : null}
         {collapsed && hiddenThreads.length > 0 ? (
-          <span className="shrink-0 text-xs tabular-nums text-sidebar-muted-foreground group-hover/project-folder:invisible group-has-[[data-sidebar-action-for]:focus]/project-folder:invisible pointer-coarse:invisible">
+          <span className="shrink-0 text-2xs tabular-nums text-sidebar-muted-foreground/70 group-hover/project-folder:invisible group-has-[[data-sidebar-action-for]:focus]/project-folder:invisible pointer-coarse:invisible">
             {hiddenThreads.length}
           </span>
         ) : null}
         <ChevronDownIcon
           aria-hidden
           className={cn(
-            "size-3 shrink-0 text-sidebar-muted-foreground transition-transform",
+            "size-3 shrink-0 text-sidebar-muted-foreground/65 transition-transform",
             collapsed && "-rotate-90",
           )}
         />

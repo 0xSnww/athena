@@ -233,7 +233,7 @@ function SidebarProvider({
     <SidebarContext value={contextValue}>
       <div
         className={cn(
-          "group/sidebar-wrapper flex min-h-svh w-full",
+          "group/sidebar-wrapper flex min-h-svh w-full bg-background",
           SIDEBAR_TITLEBAR_CONTROL_SIZE,
           className,
         )}
@@ -389,8 +389,9 @@ function Sidebar({
         <div
           className={cn(
             "relative w-(--sidebar-width) bg-transparent",
+            "[[data-athena-rail=true]_&]:w-[calc(var(--sidebar-width)+4rem)]",
             "[[data-panel-animations=true]_&]:transition-[width] [[data-panel-animations=true]_&]:[transition-duration:var(--panel-animation-duration)] [[data-panel-animations=true]_&]:ease-out",
-            "group-data-[collapsible=offcanvas]:w-0",
+            "group-data-[collapsible=offcanvas]:w-0 [[data-athena-rail=true]_&]:group-data-[collapsible=offcanvas]:w-0",
             "group-data-[side=right]:rotate-180",
             variant === "floating" || variant === "inset"
               ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
@@ -403,18 +404,23 @@ function Sidebar({
             "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) md:flex",
             "[[data-panel-animations=true]_&]:transition-[left,right,width] [[data-panel-animations=true]_&]:[transition-duration:var(--panel-animation-duration)] [[data-panel-animations=true]_&]:ease-out",
             side === "left"
-              ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
+              ? "left-0 [[data-athena-rail=true]_&]:left-16 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)] [[data-athena-rail=true]_&]:group-data-[collapsible=offcanvas]:left-[calc((var(--sidebar-width)+4rem)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
-            variant === "floating" || variant === "inset"
-              ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
-              : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
+            variant === "floating"
+              ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
+              : variant === "inset"
+                ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
+                : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
             className,
           )}
           data-slot="sidebar-container"
           {...props}
         >
           <div
-            className="flex h-full w-full flex-col bg-sidebar surface-grain group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow-sm/5"
+            className={cn(
+              "flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-none group-data-[variant=floating]:border-0 group-data-[variant=floating]:bg-transparent group-data-[variant=floating]:shadow-none",
+              variant !== "floating" && "surface-grain",
+            )}
             data-sidebar="sidebar"
             data-slot="sidebar-inner"
           >
@@ -590,7 +596,7 @@ function SidebarRail({
               canResize
                 ? "cursor-col-resize"
                 : "in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize [[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize",
-              "group-data-[collapsible=offcanvas]:translate-x-0 hover:group-data-[collapsible=offcanvas]:bg-sidebar group-data-[collapsible=offcanvas]:after:left-full",
+              "group-data-[collapsible=offcanvas]:translate-x-0 hover:group-data-[collapsible=offcanvas]:bg-sidebar group-data-[variant=floating]:group-data-[collapsible=offcanvas]:hover:bg-transparent group-data-[collapsible=offcanvas]:after:left-full",
               "[[data-side=left][data-collapsible=offcanvas]_&]:-right-2",
               "[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
               className,
@@ -634,7 +640,7 @@ function SidebarInput({ className, ...props }: Omit<InputProps, "unstyled" | "va
   return (
     <Input
       className={cn(
-        "[&_[data-slot=input]]:h-auto [&_[data-slot=input]]:p-0 [&_[data-slot=input]]:font-medium [&_[data-slot=input]]:text-sidebar-foreground [&_[data-slot=input]]:text-sm [&_[data-slot=input]]:leading-normal [&_[data-slot=input]]:placeholder:text-sidebar-muted-foreground",
+        "[&_[data-slot=input]]:h-auto [&_[data-slot=input]]:p-0 [&_[data-slot=input]]:font-medium [&_[data-slot=input]]:text-sidebar-foreground [&_[data-slot=input]]:text-xs [&_[data-slot=input]]:leading-normal [&_[data-slot=input]]:placeholder:text-sidebar-muted-foreground",
         className,
       )}
       unstyled
@@ -671,10 +677,7 @@ function SidebarHeader({ className, ...props }: React.ComponentProps<"div">) {
 function SidebarFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn(
-        "flex flex-col gap-2 px-[var(--sidebar-content-inset)] pt-1 pb-[var(--sidebar-content-inset)]",
-        className,
-      )}
+      className={cn("flex flex-col gap-2 px-2.5 py-1", className)}
       data-sidebar="footer"
       data-slot="sidebar-footer"
       {...props}
@@ -691,7 +694,9 @@ function SidebarContent({
 }) {
   return (
     <>
-      {fixedHeader ? <div className="w-full shrink-0">{fixedHeader}</div> : null}
+      {fixedHeader ? (
+        <div className="w-full shrink-0 [&>[data-sidebar=group]]:pb-0">{fixedHeader}</div>
+      ) : null}
       <ScrollArea
         hideScrollbars
         scrollFade

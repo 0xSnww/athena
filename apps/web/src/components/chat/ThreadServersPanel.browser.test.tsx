@@ -84,7 +84,7 @@ it("pages servers four at a time, collapses back, and resets on thread switch", 
 it("opens a remote server in the system browser through the forward a modified click starts", async () => {
   shell.openExternal.mockClear();
   await using _screen = await render(panel("a"));
-  await page.getByText("localhost:3000", { exact: true }).click({ modifiers: ["ControlOrMeta"] });
+  await page.getByText(":3000", { exact: true }).click({ modifiers: ["ControlOrMeta"] });
   await vi.waitFor(() =>
     expect(shell.openExternal).toHaveBeenCalledWith("http://localhost:45000/"),
   );

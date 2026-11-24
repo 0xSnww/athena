@@ -133,6 +133,7 @@ import { resolveThreadReferenceCopyTarget } from "@t3tools/client-runtime/thread
 import { resolveTerminalSessionLabel } from "@t3tools/shared/terminalLabelsCopy";
 import { useAtomValue } from "@effect/atom-react";
 import {
+  type CSSProperties,
   type MouseEvent as ReactMouseEvent,
   type SetStateAction,
   use,
@@ -213,7 +214,8 @@ import { isEditableFocused } from "../lib/editableFocus";
 import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
 import { shortcutLabelForCommand } from "../keybindings";
 import { cn } from "~/lib/utils";
-import { COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS } from "~/workspaceTitlebar";
+import { AthenaComposerUsageRings } from "./athena/AthenaComposerUsageRings";
+import { AthenaDotBackdrop } from "./athena/AthenaDotBackdrop";
 import { toastManager } from "./ui/toast";
 import { projectScriptIdFromCommand } from "~/projectScripts";
 import { newMessageId } from "~/lib/utils";
@@ -335,8 +337,6 @@ import {
   offersWorkspaceModes,
   resolveEffectiveEnvMode,
   resolveLocalCheckoutBranchMismatch,
-  shouldShowComposerContextStrip,
-  shouldShowEnvironmentIndicator,
 } from "./BranchToolbar.logic";
 import {
   getProviderStatusDismissalKey,
@@ -1296,14 +1296,6 @@ export default function ChatView(props: ChatViewProps) {
   );
   const hasMultipleEnvironments = logicalProjectEnvironments.length > 1;
   const canAutoBalanceEnvironments = hasMultipleEnvironments && !activeProjectIsScratch;
-  const activeEnvironmentOption =
-    logicalProjectEnvironments.find(
-      (environment) => environment.environmentId === activeThread?.environmentId,
-    ) ?? null;
-  const showComposerEnvironmentIndicator = shouldShowEnvironmentIndicator({
-    activeEnvironment: activeEnvironmentOption,
-    canPickEnvironment: hasMultipleEnvironments,
-  });
 
   const pullRequestLinking = usePullRequestLinking(environmentId);
   // Best effort: the thread already exists, so a failed link is only logged.
@@ -1877,6 +1869,29 @@ export default function ChatView(props: ChatViewProps) {
   const providerSubagentModelLabel = providerSubagentCatalogModel
     ? getTriggerDisplayModelName(providerSubagentCatalogModel, selectedProviderEntry?.driverKind)
     : formatModelSlugName(activeThread?.modelSelection.model ?? "");
+  const activeDetailsModelRaw = activeUsageModel ?? activeThread?.modelSelection.model ?? "";
+  const activeDetailsModelSlug = selectedProviderEntry
+    ? resolveSelectableModel(
+        selectedProviderEntry.driverKind,
+        activeDetailsModelRaw,
+        providerSubagentModels,
+      )
+    : null;
+  const activeDetailsCatalogModel = providerSubagentModels.find(
+    (model) => model.slug === activeDetailsModelSlug,
+  );
+  const activeDetailsModelLabel = activeDetailsCatalogModel
+    ? getTriggerDisplayModelName(activeDetailsCatalogModel, selectedProviderEntry?.driverKind)
+    : formatModelSlugName(activeDetailsModelRaw);
+  const activeDetailsProvider = selectedProviderEntry
+    ? {
+        driverKind: selectedProviderEntry.driverKind,
+        displayName: selectedProviderEntry.displayName,
+        accentColor: selectedProviderEntry.accentColor,
+        acpRegistryAgentId: selectedProviderEntry.acpRegistryAgentId,
+        acpRegistryIconUrl: selectedProviderEntry.acpRegistryIconUrl,
+      }
+    : null;
   const providerSubagentEffortLabel =
     activeThread === undefined
       ? null
@@ -1885,15 +1900,7 @@ export default function ChatView(props: ChatViewProps) {
           providerSubagentModels,
           reportedModelSelection,
         );
-  const showComposerContextStrip =
-    !embedded &&
-    shouldShowComposerContextStrip({
-      isDraftHeroState,
-      persistInActiveThreads: settings.persistComposerContextStrip,
-      hasActiveProject: activeProject !== null && !showProviderSubagentBar,
-      isGitRepo,
-      showEnvironmentIndicator: showComposerEnvironmentIndicator,
-    });
+  const showComposerContextStrip = !embedded && activeProject !== null && !showProviderSubagentBar;
   const terminalShortcutLabelOptions = {
     context: {
       terminalFocus: true,
@@ -2071,18 +2078,27 @@ export default function ChatView(props: ChatViewProps) {
   const threadPanelInlineOpen = useRightPanelStore((state) =>
     selectThreadPanelOpen(state.threadPanelVisibilityByThreadKey, activeThreadRef, "inline"),
   );
-  // Selects only the mode, so canvas resizes rerender the chat view only when the
-  // card switches presentation.
-  const threadPanelPresentation = useStore(
+  // Selects only the presentation & lane insets, so canvas resizes rerender only on transition or inset change.
+  const {
+    detailsCardMode: threadPanelPresentation,
+    chatLaneInsetStart,
+    chatLaneInsetEnd,
+  } = useStore(
     chatCanvasStore,
-    (state) =>
-      resolveChatCanvasModel({
+    useShallow((state) => {
+      const model = resolveChatCanvasModel({
         measurements: state.measurements,
         detailsCardMeasurement: state.detailsCardMeasurement,
         threadRef: activeThreadRef,
         preview: canvasPreview,
         detailsCardInlineOpen: threadPanelInlineOpen,
-      }).detailsCardMode,
+      });
+      return {
+        detailsCardMode: model.detailsCardMode,
+        chatLaneInsetStart: model.layout.chat.insetStart,
+        chatLaneInsetEnd: model.layout.chat.insetEnd,
+      };
+    }),
   );
   const threadPanelOpen = useRightPanelStore((state) =>
     selectThreadPanelOpen(
@@ -3509,8 +3525,9 @@ export default function ChatView(props: ChatViewProps) {
   const content = (
     <div
       ref={setWorkspaceLayoutElement}
-      className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background"
+      className="relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background"
     >
+      {embedded ? null : <AthenaDotBackdrop />}
       {embedded ? null : (
         <DeviceSetupDialogHost
           threadKey={activeThreadKey}
@@ -3521,7 +3538,7 @@ export default function ChatView(props: ChatViewProps) {
       {rightPanelControlsAtRoot && !embedded ? panelLayoutControls : null}
       <div
         className={cn(
-          "flex min-h-0 min-w-0 flex-col overflow-x-hidden",
+          "relative z-[1] flex min-h-0 min-w-0 flex-col overflow-x-hidden",
           rightPanelMaximized ? "w-0 flex-none" : "flex-1",
         )}
         data-chat-column-maximized-away={rightPanelMaximized ? "true" : "false"}
@@ -3533,17 +3550,21 @@ export default function ChatView(props: ChatViewProps) {
           <header
             ref={threadPanelPopoverAnchorRef}
             data-chat-header
+            data-right-panel-open={inlineRightPanelOwnsTitleBar ? "true" : undefined}
+            data-reserve-native-controls={
+              isElectron && reserveTitleBarControlInset && !inlineRightPanelOwnsTitleBar
+                ? "true"
+                : undefined
+            }
+            style={
+              {
+                "--chat-lane-inset-start": `${chatLaneInsetStart}px`,
+                "--chat-lane-inset-end": `${chatLaneInsetEnd}px`,
+              } as CSSProperties
+            }
             className={cn(
-              "relative bg-background [[data-panel-animations=true]_&]:motion-safe:transition-[padding-left] [[data-panel-animations=true]_&]:motion-safe:duration-(--panel-animation-duration) [[data-panel-animations=true]_&]:motion-safe:ease-out",
-              isElectron
-                ? cn(
-                    "drag-region flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center px-3 sm:px-5",
-                    reserveTitleBarControlInset &&
-                      !inlineRightPanelOwnsTitleBar &&
-                      "wco:pr-(--workspace-native-controls-inset)",
-                  )
-                : "flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center pl-(--workspace-gutter-start) pr-(--workspace-gutter-end)",
-              COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS,
+              "chat-header-lane relative flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center bg-transparent [[data-panel-animations=true]_&]:motion-safe:transition-[padding-inline] [[data-panel-animations=true]_&]:motion-safe:duration-(--panel-animation-duration) [[data-panel-animations=true]_&]:motion-safe:ease-out",
+              isElectron && "drag-region",
             )}
           >
             {isElectron && rightPanelControlsAtRoot ? (
@@ -3558,6 +3579,7 @@ export default function ChatView(props: ChatViewProps) {
               activeThreadEnvironmentId={activeThread.environmentId}
               activeThreadId={activeThread.id}
               isServerThread={isServerThread}
+              isDraftHero={isDraftHeroState}
               activeThreadTitle={activeThread.title}
               activeThreadLinkOrigin={activeThreadShell?.linkOrigin?.label ?? null}
               activeProject={activeProject ?? null}
@@ -3613,7 +3635,7 @@ export default function ChatView(props: ChatViewProps) {
             />
             <div
               {...conversationArea}
-              className="relative flex min-h-0 flex-1 flex-col bg-background"
+              className="relative flex min-h-0 flex-1 flex-col bg-transparent"
             >
               <WorkspaceMutationIdContext value={workspaceMutationId}>
                 <ThreadTimeline
@@ -4029,22 +4051,32 @@ export default function ChatView(props: ChatViewProps) {
                                       : undefined
                                   }
                                   availableEnvironments={logicalProjectEnvironments}
-                                  {...(isServerThread
-                                    ? {}
-                                    : {
-                                        trailing: (
-                                          <ComposerContextPermissions
-                                            environmentId={environmentId}
-                                            runtimeMode={runtimeMode}
-                                            supportedRuntimeModes={draftSupportedRuntimeModes(
-                                              activeProviderStatus?.supportedRuntimeModes,
-                                              multipleModelSelections,
-                                              providerStatuses,
-                                            )}
-                                            onRuntimeModeChange={handleRuntimeModeChangeStable}
-                                          />
-                                        ),
-                                      })}
+                                  alwaysShowEnvironmentIndicator={isServerThread}
+                                  trailing={
+                                    isServerThread ? (
+                                      <AthenaComposerUsageRings
+                                        providerInstanceId={activeProviderInstanceId}
+                                        model={activeUsageModel}
+                                        providers={providerStatuses}
+                                        sources={
+                                          serverConfig?.usageLimitSources ??
+                                          EMPTY_USAGE_LIMIT_SOURCES
+                                        }
+                                        contextWindow={activeContextWindow}
+                                      />
+                                    ) : (
+                                      <ComposerContextPermissions
+                                        environmentId={environmentId}
+                                        runtimeMode={runtimeMode}
+                                        supportedRuntimeModes={draftSupportedRuntimeModes(
+                                          activeProviderStatus?.supportedRuntimeModes,
+                                          multipleModelSelections,
+                                          providerStatuses,
+                                        )}
+                                        onRuntimeModeChange={handleRuntimeModeChangeStable}
+                                      />
+                                    )
+                                  }
                                 />
                               </div>
                             )}
@@ -4100,6 +4132,18 @@ export default function ChatView(props: ChatViewProps) {
                   isServerThread={isServerThread}
                   {...(draftId ? { draftId } : {})}
                   composerDraftTarget={composerDraftTarget}
+                  activeThreadTitle={activeThread.title}
+                  activeModelLabel={activeDetailsModelLabel || null}
+                  activeEffortLabel={providerSubagentEffortLabel}
+                  activeProvider={activeDetailsProvider}
+                  terminalOpen={terminalUiState.terminalOpen}
+                  filesPanelOpen={rightPanelOpen && renderedRightPanelSurface?.kind === "files"}
+                  onOpenFiles={activeProject !== null ? addFilesSurfaceStable : undefined}
+                  onToggleTerminal={
+                    activeProject !== null ? toggleTerminalVisibilityStable : undefined
+                  }
+                  onNewThreadInProject={handleNewThreadInActiveProjectStable}
+                  onOpenSideChat={sideChat.available ? openSideChatStable : undefined}
                   activeProjectName={activeProject?.title}
                   activeProjectScripts={activeProject ? activeProjectScripts : undefined}
                   preferredScriptId={

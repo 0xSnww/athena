@@ -125,7 +125,7 @@ export function SidebarFolderDrop(props: { children: ReactNode }) {
       {isActive ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-1.5 z-30 flex flex-col items-center justify-center gap-2 rounded-lg px-4 text-center bg-sidebar/90 text-sm text-sidebar-foreground ring-1 ring-inset ring-primary/70"
+          className="pointer-events-none absolute inset-1.5 z-30 flex flex-col items-center justify-center gap-2 rounded-lg bg-sidebar/90 px-4 text-center text-sm text-sidebar-foreground ring-1 ring-inset ring-primary/70 md:inset-y-3 md:top-14 md:right-2 md:left-0 md:rounded-2xl"
         >
           <FolderPlusIcon className="size-5 text-sidebar-muted-foreground" />
           {bridge === undefined

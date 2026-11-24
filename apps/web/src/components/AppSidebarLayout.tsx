@@ -33,7 +33,7 @@ import { selectActiveRightPanel, useRightPanelStore } from "../rightPanelStore";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { cn, isMacPlatform } from "../lib/utils";
 import { primaryServerKeybindingsAtom } from "../state/server";
-import { useEnvironmentIdentificationMode } from "../hooks/useSettings";
+import { AthenaFloatingRail } from "./athena/AthenaFloatingRail";
 import {
   PanelAnimationSuppressionProvider,
   usePanelAnimationSettings,
@@ -45,7 +45,6 @@ import ThreadSidebar from "./Sidebar";
 import { SidebarBrandWidthProbe } from "./sidebar/SidebarChrome";
 import { isAppModalPage } from "./sidebar/mainAppLocation";
 import type { SidebarRouteReveal } from "./sidebar/routeReveal";
-import { useSidebarStageBackdropVariant } from "./SidebarStageBackdrop";
 import {
   clampThreadSidebarWidth,
   resolveInitialThreadSidebarWidth,
@@ -61,7 +60,6 @@ import {
   SidebarTrigger,
   useMobileSidebarSheetMounted,
   useSidebar,
-  useSidebarVisibility,
 } from "./ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { appAtomRegistry } from "../rpc/atomRegistry";
@@ -317,13 +315,11 @@ function registerAppShellCommands(router: AnyRouter, shellElement: Element): () 
 function SidebarControl({ showSidebar }: { readonly showSidebar: boolean }) {
   const gt = useGT();
   const router = useRouter();
-  const usagePageOpen = useLocation({ select: (location) => location.pathname === "/usage" });
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const usagePageOpen = pathname === "/usage";
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
-  const { toggleSidebar } = useSidebar();
+  const { isMobile, toggleSidebar } = useSidebar();
   const mobileSidebarSheetMounted = useMobileSidebarSheetMounted();
-  const isSidebarVisible = useSidebarVisibility();
-  const environmentIdentificationMode = useEnvironmentIdentificationMode();
-  const stageBackdropVariant = useSidebarStageBackdropVariant(environmentIdentificationMode);
   const shortcutLabel = shortcutLabelForCommand(keybindings, "sidebar.toggle", {
     context: { usagePageOpen },
   });
@@ -393,25 +389,26 @@ function SidebarControl({ showSidebar }: { readonly showSidebar: boolean }) {
       data-sidebar-control=""
     >
       {showSidebar ? (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <SidebarTrigger
-                variant={isSidebarVisible && stageBackdropVariant ? "media-navigation" : "ghost"}
-                className={cn(
-                  "pointer-events-auto",
-                  isSidebarVisible && stageBackdropVariant && "relative top-auto translate-y-0",
-                )}
-                aria-label={gt("Toggle main sidebar")}
-              />
-            }
-          />
-          <TooltipPopup side="bottom">
-            {shortcutLabel
-              ? gt("Toggle main sidebar ({shortcut})", { shortcut: shortcutLabel })
-              : gt("Toggle main sidebar")}
-          </TooltipPopup>
-        </Tooltip>
+        isMobile || pathname.startsWith("/settings") || pathname.startsWith("/usage") ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <SidebarTrigger
+                  variant="ghost"
+                  className="pointer-events-auto"
+                  aria-label={gt("Toggle main sidebar")}
+                />
+              }
+            />
+            <TooltipPopup side="bottom">
+              {shortcutLabel
+                ? gt("Toggle main sidebar ({shortcut})", { shortcut: shortcutLabel })
+                : gt("Toggle main sidebar")}
+            </TooltipPopup>
+          </Tooltip>
+        ) : (
+          <AthenaFloatingRail />
+        )
       ) : null}
     </div>
   );
@@ -464,13 +461,17 @@ export function AppSidebarLayout({
     "--panel-animation-duration": `${panelAnimationDurationMs}ms`,
     ...windowControlsInsetStyle,
   } as CSSProperties;
+  const showAthenaRail =
+    showSidebar && !pathname.startsWith("/settings") && !pathname.startsWith("/usage");
 
   return (
     <PanelAnimationSuppressionProvider value={panelAnimationsSuppressed}>
       <SidebarProvider
         className="h-dvh! min-h-0!"
+        data-athena-rail={showAthenaRail ? "true" : undefined}
         data-panel-animations={routePanelAnimationsActive ? "true" : "false"}
-        storageKey="chat_thread_sidebar_open"
+        defaultOpen={false}
+        storageKey="athena_thread_sidebar_open"
         style={sidebarProviderStyle}
       >
         {showSidebar ? (
@@ -478,6 +479,7 @@ export function AppSidebarLayout({
             <SidebarBrandWidthProbe isElectron={isElectron} onWidthChange={setBrandWidth} />
             <Sidebar
               side="left"
+              variant="floating"
               collapsible="offcanvas"
               data-app-sidebar=""
               {...sidebarArea}

@@ -487,12 +487,10 @@ export default function ProjectScriptsControl({
                 isPanel && cn("not-sr-only ml-0.5", THREAD_DETAILS_PANEL_LABEL_CLASS),
               )}
             >
-              {isPanel ? gt("Add project script") : gt("Add action")}
+              {gt("Add action")}
             </span>
           </TooltipTrigger>
-          <TooltipPopup side="top">
-            {isPanel ? gt("Add project script") : gt("Add action")}
-          </TooltipPopup>
+          <TooltipPopup side="top">{gt("Add action")}</TooltipPopup>
         </Tooltip>
       )}
 

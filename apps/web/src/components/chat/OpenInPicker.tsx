@@ -233,14 +233,16 @@ export const OpenInPicker = memo(function OpenInPicker({
   presentation?: "toolbar" | "menu";
   compact?: boolean;
   enableShortcut?: boolean;
-  displayMode?: "toolbar" | "panel";
+  displayMode?: "toolbar" | "panel" | "compact-icon";
   revealFileManager?: boolean;
 }) {
   const gt = useGT();
   const messages = useMessages();
   const isPanel = displayMode === "panel";
+  const isCompactIcon = displayMode === "compact-icon";
   const ActionGroup = isPanel ? "div" : Group;
   const panelAnchorRef = useRef<HTMLDivElement | null>(null);
+  const compactIconAnchorRef = useRef<HTMLButtonElement | null>(null);
   const openInEditorMutation = useAtomCommand(shellEnvironment.openInEditor, "open in editor");
   const remote = useRemoteOpenState(environmentId);
   const canOperateHost = useEnvironmentScope(environmentId, AuthOrchestrationOperateScope);
@@ -390,6 +392,70 @@ export const OpenInPicker = memo(function OpenInPicker({
           <MenuSubPopup>{editorItems}</MenuSubPopup>
         </MenuSub>
       </>
+    );
+  }
+
+  if (isCompactIcon) {
+    const iconLabel = primaryOption
+      ? gt("Open in {editor}", { editor: primaryOption.label })
+      : gt("Open in editor");
+    return (
+      <Menu open={menuOpen} onOpenChange={setMenuOpen}>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <ThreadDetailsControl
+                ref={compactIconAnchorRef}
+                aria-label={iconLabel}
+                data-toolbar-control=""
+                size="icon-xs"
+                variant="ghost"
+                part="icon"
+                tone="muted"
+                disabled={!openInCwd || (!canOpenEditor && options.length === 0)}
+                {...(enableShortcut && !backgroundThread
+                  ? { [OPEN_FAVORITE_EDITOR_ATTRIBUTE]: "" }
+                  : {})}
+                onClick={() => {
+                  if (!preferredEditor || !canOpenEditor) {
+                    setMenuOpen(true);
+                    return;
+                  }
+                  const label = editorLabelForPlatform(preferredEditor, navigator.platform);
+                  void openInEditor(preferredEditor).then((opened) => {
+                    if (opened) announce(gt("Opened in {editor}", { editor: label }));
+                  });
+                }}
+                onContextMenu={(event) => {
+                  if (isHostEditorDenied) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setMenuOpen(true);
+                }}
+              />
+            }
+          >
+            {primaryOption?.Icon ? (
+              <primaryOption.Icon
+                aria-hidden="true"
+                className={cn("size-3.5", getOpenInIconClass(primaryOption.kind))}
+              />
+            ) : (
+              <SquareArrowOutUpRightIcon aria-hidden="true" className="size-3.5" />
+            )}
+          </TooltipTrigger>
+          <TooltipPopup side="top">
+            {primaryOption && options.length > 1
+              ? gt("Open in {editor} (right-click to choose editor)", {
+                  editor: primaryOption.label,
+                })
+              : iconLabel}
+          </TooltipPopup>
+        </Tooltip>
+        <MenuPopup align="end" anchor={compactIconAnchorRef}>
+          {editorItems}
+        </MenuPopup>
+      </Menu>
     );
   }
 

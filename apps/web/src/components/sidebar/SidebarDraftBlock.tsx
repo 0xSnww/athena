@@ -148,21 +148,23 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
         aria-current={accessibility.current}
         data-testid="sidebar-draft-row"
         className={cn(
-          "group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-md text-left text-sidebar-foreground outline-none select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-          props.isActive ? "bg-sidebar-row-active" : draftSurfaceClassName,
+          "group/sidebar-row relative w-full cursor-pointer overflow-hidden rounded-xl border text-left text-sidebar-foreground outline-none transition-colors select-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+          props.isActive
+            ? "border-border/75 bg-black/[0.045] dark:border-white/[0.08] dark:bg-white/[0.055]"
+            : cn("border-transparent", draftSurfaceClassName),
         )}
         onClick={handleActivate}
         onContextMenu={handleContextMenu}
         onKeyDown={handleKeyDown}
       >
-        <div className="relative z-10 h-[4.875rem] px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">
+        <div className="relative z-10 px-2.5 py-2">
           <div className="flex h-5 min-w-0 items-center gap-1.5">
             <SquarePenIcon aria-hidden className={draftPenClassName} />
             {props.project ? (
-              <ProjectFavicon project={props.project} className="size-4 shrink-0" />
+              <ProjectFavicon project={props.project} className="size-3.5 shrink-0" />
             ) : null}
-            <span className="min-w-0 flex-1 truncate text-xs font-medium text-secondary-label">
-              {props.projectDisplayName}
+            <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground/90">
+              {preview}
             </span>
             <span
               className={cn(
@@ -190,7 +192,11 @@ const SidebarDraftRow = memo(function SidebarDraftRow(props: {
               {props.jumpLabel ? <JumpHintBadge label={props.jumpLabel} /> : null}
             </span>
           </div>
-          <div className="mt-0.5 truncate text-sm font-medium text-foreground/90">{preview}</div>
+          {props.projectDisplayName ? (
+            <div className="mt-0.5 truncate pl-5 text-2xs text-secondary-label">
+              {props.projectDisplayName}
+            </div>
+          ) : null}
         </div>
       </div>
     </li>

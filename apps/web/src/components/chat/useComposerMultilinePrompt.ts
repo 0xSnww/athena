@@ -1,6 +1,30 @@
 import { useState } from "react";
 import { observeResize } from "../../lib/observeResize";
 
+function measureEditorContentBounds(editor: HTMLElement): {
+  readonly width: number;
+  readonly height: number;
+  readonly blockCount: number;
+} {
+  const blocks = editor.querySelectorAll<HTMLElement>(
+    "p, li, pre, blockquote, h1, h2, h3, h4, h5, h6",
+  );
+  const range = document.createRange();
+  range.selectNodeContents(editor);
+  const bounds = range.getBoundingClientRect();
+  if (blocks.length !== 1) {
+    return { width: bounds.width, height: bounds.height, blockCount: blocks.length };
+  }
+  const block = blocks[0]!;
+  if (block.childNodes.length === 0) {
+    return { width: 0, height: bounds.height, blockCount: 1 };
+  }
+  const inlineRange = document.createRange();
+  inlineRange.selectNodeContents(block);
+  const inlineBounds = inlineRange.getBoundingClientRect();
+  return { width: inlineBounds.width, height: bounds.height, blockCount: 1 };
+}
+
 function measureComposerMultilinePrompt(body: HTMLElement): boolean | null {
   const editor = body.querySelector<HTMLElement>('[data-testid="composer-editor"]');
   if (!editor || editor.clientWidth === 0) return null;
@@ -11,12 +35,11 @@ function measureComposerMultilinePrompt(body: HTMLElement): boolean | null {
     Number.parseFloat(bodyStyle.paddingLeft) -
     Number.parseFloat(bodyStyle.paddingRight);
   const lineHeight = Number.parseFloat(getComputedStyle(editor).lineHeight);
-  const range = document.createRange();
-  range.selectNodeContents(editor);
-  const bounds = range.getBoundingClientRect();
+  const { width, height, blockCount } = measureEditorContentBounds(editor);
+  const singleLineBudget = Math.max(120, expandedWidth - 340);
 
-  // Measure against expanded width to prevent inline actions oscillating collapse.
-  return bounds.height > lineHeight + 1 || bounds.width > expandedWidth + 1;
+  // Measure inline text against the expanded single-line budget so pill <-> stacked does not oscillate.
+  return blockCount > 1 || height > lineHeight + 2 || width > singleLineBudget;
 }
 
 /** Whether the prompt wraps, and the ref callback that measures it on the composer body. */

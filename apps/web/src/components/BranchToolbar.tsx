@@ -72,7 +72,6 @@ import {
   MenuSubTrigger,
   MenuTrigger,
 } from "./ui/menu";
-import { Separator } from "./ui/separator";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { MiddleTruncate } from "./ui/middle-truncate";
 import { ComposerSurface } from "./chat/ComposerSurface";
@@ -119,6 +118,7 @@ interface BranchToolbarProps {
   trailing?: ReactNode;
   availableEnvironments?: readonly EnvironmentOption[];
   onEnvironmentChange?: (environmentId: EnvironmentId) => void;
+  alwaysShowEnvironmentIndicator?: boolean;
 }
 
 function showWorkspaceContextMenu(event: ReactMouseEvent, workspacePath: string) {
@@ -667,6 +667,7 @@ export const BranchToolbar = memo(function BranchToolbar({
   availableEnvironments,
   onEnvironmentChange,
   trailing,
+  alwaysShowEnvironmentIndicator = false,
 }: BranchToolbarProps) {
   const m = useMessages();
   const branchSelectorRef = useRef<BranchToolbarBranchSelectorHandle>(null);
@@ -730,10 +731,12 @@ export const BranchToolbar = memo(function BranchToolbar({
     availableEnvironments?.find((env) => env.environmentId === environmentId) ?? null;
   // Started threads get no handler but still show which machine they run on,
   // matching the strip visibility ChatView computes from the same inputs.
-  const showEnvironmentIndicator = shouldShowEnvironmentIndicator({
-    activeEnvironment: activeEnvironmentOption,
-    canPickEnvironment: hasMultipleEnvironments,
-  });
+  const showEnvironmentIndicator =
+    shouldShowEnvironmentIndicator({
+      activeEnvironment: activeEnvironmentOption,
+      canPickEnvironment: hasMultipleEnvironments,
+    }) ||
+    (layout === "composer" && alwaysShowEnvironmentIndicator && activeEnvironmentOption !== null);
   const [attachStrip, labelsOverflow] = useLabelsOverflow();
   const plainProjectBaseBranch = useWorktreeBaseBranch(activeProject ?? null);
 
@@ -831,12 +834,11 @@ export const BranchToolbar = memo(function BranchToolbar({
         <div
           className={cn(
             "min-h-7 min-w-10 items-center gap-1 sm:min-h-6",
-            showGitControls ? "hidden @xl/composer-surface:flex" : "flex",
-            "flex-1",
+            showGitControls ? "hidden @xl/composer-surface:contents" : "flex flex-1",
           )}
         >
           {showEnvironmentIndicator && availableEnvironments && (
-            <>
+            <div className="flex shrink-0 items-center @xl/composer-surface:order-3 @xl/composer-surface:ml-auto">
               <BranchToolbarEnvironmentSelector
                 autoEnvironmentLabel={autoEnvironmentLabel}
                 onAutoEnvironment={onAutoEnvironment}
@@ -846,41 +848,38 @@ export const BranchToolbar = memo(function BranchToolbar({
                 {...(showEnvironmentPicker ? { onEnvironmentChange } : {})}
                 {...(addTargets.length > 0 ? { onAddToMachine: () => onAddToMachine(null) } : {})}
               />
-              {showGitControls ? (
-                <Separator
-                  orientation="vertical"
-                  className="mx-0.5 h-3.5!"
-                  data-composer-context-control
-                />
-              ) : null}
-            </>
+            </div>
           )}
           {showGitControls ? (
-            <BranchToolbarEnvModeSelector
-              forceNewWorktree={forceNewWorktree}
-              envLocked={envModeLocked}
-              effectiveEnvMode={effectiveEnvMode}
-              activeWorktreePath={activeWorktreePath}
-              onEnvModeChange={onEnvModeChange}
-              previousWorktreeLabel={previousWorktreeLabel}
-              previousWorktreeBranch={previousWorktreeSeed?.branch ?? null}
-              onUsePreviousWorktree={onUsePreviousWorktree}
-            />
+            <div className="flex shrink-0 items-center @xl/composer-surface:order-1">
+              <BranchToolbarEnvModeSelector
+                forceNewWorktree={forceNewWorktree}
+                envLocked={envModeLocked}
+                effectiveEnvMode={effectiveEnvMode}
+                activeWorktreePath={activeWorktreePath}
+                onEnvModeChange={onEnvModeChange}
+                previousWorktreeLabel={previousWorktreeLabel}
+                previousWorktreeBranch={previousWorktreeSeed?.branch ?? null}
+                onUsePreviousWorktree={onUsePreviousWorktree}
+              />
+            </div>
           ) : null}
         </div>
       ) : null}
 
       {offersRepositoryChoice ? (
-        <WorktreeRepositoriesControl
-          project={activeProject}
-          draftTarget={draftId ?? threadRef}
-          offersBaseBranch={!showBranchControls}
-        />
+        <div className="flex items-center @xl/composer-surface:order-2">
+          <WorktreeRepositoriesControl
+            project={activeProject}
+            draftTarget={draftId ?? threadRef}
+            offersBaseBranch={!showBranchControls}
+          />
+        </div>
       ) : null}
       {!showGitControls ? null : !showBranchControls ? (
         startsNewWorktree ? (
           <span
-            className="min-w-0 flex-initial truncate px-1.75 @xl/composer-surface:ml-auto"
+            className="min-w-0 flex-initial truncate px-1.75 @xl/composer-surface:order-2"
             data-composer-context-control
           >
             {plainProjectBaseBranch === ""
@@ -896,7 +895,7 @@ export const BranchToolbar = memo(function BranchToolbar({
         <BranchToolbarBranchSelector
           forceNewWorktree={forceNewWorktree}
           ref={branchSelectorRef}
-          className="min-w-0 flex-initial justify-end @xl/composer-surface:ml-auto"
+          className="ml-auto min-w-0 flex-initial justify-end @xl/composer-surface:order-2 @xl/composer-surface:ml-0 @xl/composer-surface:justify-start"
           environmentId={environmentId}
           threadId={threadId}
           {...(draftId ? { draftId } : {})}
@@ -910,7 +909,16 @@ export const BranchToolbar = memo(function BranchToolbar({
           {...(onComposerFocusRequest ? { onComposerFocusRequest } : {})}
         />
       )}
-      {trailing}
+      {trailing ? (
+        <div
+          className={cn(
+            "flex shrink-0 items-center gap-1.5 @xl/composer-surface:order-4",
+            !showEnvironmentIndicator && "@xl/composer-surface:ml-auto",
+          )}
+        >
+          {trailing}
+        </div>
+      ) : null}
     </ComposerSurface.ContextStrip>
   );
 });
