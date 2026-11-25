@@ -3524,10 +3524,7 @@ export default function ChatView(props: ChatViewProps) {
   const content = (
     <div
       ref={setWorkspaceLayoutElement}
-      className={cn(
-        "relative isolate flex min-h-0 min-w-0 flex-1 overflow-hidden",
-        embedded ? "bg-background" : "bg-transparent",
-      )}
+      className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-transparent"
     >
       {embedded ? null : (
         <DeviceSetupDialogHost
@@ -3548,6 +3545,21 @@ export default function ChatView(props: ChatViewProps) {
         onMouseUp={preventMiddleClickPasteOutsideEditable}
       >
         {embedded ? null : (
+          <div
+            aria-hidden="true"
+            data-athena-chat-blur
+            style={
+              {
+                "--chat-lane-inset-start": `${chatLaneInsetStart}px`,
+                "--chat-lane-inset-end": `${chatLaneInsetEnd}px`,
+              } as CSSProperties
+            }
+            className="pointer-events-none absolute inset-y-0 start-(--chat-lane-inset-start,0px) end-(--chat-lane-inset-end,0px) z-0 hidden justify-center [[data-athena-rail=true]_&]:flex"
+          >
+            <div className="athena-chat-lane-blur h-full w-[min(100%,calc(var(--chat-content-max-width)+16rem))]" />
+          </div>
+        )}
+        {embedded ? null : (
           <header
             ref={threadPanelPopoverAnchorRef}
             data-chat-header
@@ -3564,7 +3576,7 @@ export default function ChatView(props: ChatViewProps) {
               } as CSSProperties
             }
             className={cn(
-              "chat-header-lane relative flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center bg-transparent [[data-panel-animations=true]_&]:motion-safe:transition-[padding-inline] [[data-panel-animations=true]_&]:motion-safe:duration-(--panel-animation-duration) [[data-panel-animations=true]_&]:motion-safe:ease-out",
+              "chat-header-lane relative z-[1] flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center bg-transparent [[data-panel-animations=true]_&]:motion-safe:transition-[padding-inline] [[data-panel-animations=true]_&]:motion-safe:duration-(--panel-animation-duration) [[data-panel-animations=true]_&]:motion-safe:ease-out",
               isElectron && "drag-region",
             )}
           >
@@ -3596,7 +3608,7 @@ export default function ChatView(props: ChatViewProps) {
           </header>
         )}
 
-        <div className="relative flex min-h-0 min-w-0 flex-1">
+        <div className="relative z-[1] flex min-h-0 min-w-0 flex-1">
           <ThreadFindCanvas
             findOptions={{
               skills: timelineSkills,
@@ -4071,12 +4083,19 @@ export default function ChatView(props: ChatViewProps) {
                                         <AthenaComposerUsageRings
                                           providerInstanceId={activeProviderInstanceId}
                                           model={activeUsageModel}
+                                          modelLabel={activeDetailsModelLabel || null}
                                           providers={providerStatuses}
                                           sources={
                                             serverConfig?.usageLimitSources ??
                                             EMPTY_USAGE_LIMIT_SOURCES
                                           }
                                           contextWindow={activeContextWindow}
+                                          onCompactContext={
+                                            compactThreadUnavailable
+                                              ? undefined
+                                              : onComposerCompactContextStable
+                                          }
+                                          compactDisabled={compactDisabled}
                                         />
                                       ) : null}
                                     </>

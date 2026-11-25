@@ -3099,7 +3099,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           fixedHeader={
             <SidebarGroup className="z-[1]">
               <SidebarThreadHeader
-                threadCount={pinnedThreads.length + activeThreads.length + workingThreads.length}
                 searchShortcutLabel={
                   shortcutLabelForCommand(keybindings, "commandPalette.toggle") ?? undefined
                 }

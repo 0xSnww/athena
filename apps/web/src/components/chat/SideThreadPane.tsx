@@ -29,6 +29,7 @@ import {
 } from "../../threadRoutes";
 import { useOpenThreadFamily } from "../ThreadRouteView";
 import { useAtomCommand } from "../../state/use-atom-command";
+import { AthenaAgentBadge } from "../athena/AthenaAgentBadge";
 import ChatView from "../ChatView";
 import { Button } from "../ui/button";
 import { toastManager } from "../ui/toast";
@@ -145,14 +146,17 @@ export default function SideThreadPane(props: {
       className="flex h-full min-h-0 flex-col"
     >
       {isSideChat ? (
-        <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border pr-1 pl-3">
-          <h2 className="min-w-0 flex-1 truncate text-xs font-medium">{title}</h2>
+        <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-border/45 px-2.5 dark:border-white/[0.07]">
+          <AthenaAgentBadge size="sm" threadRef={threadRef} />
+          <h2 className="min-w-0 flex-1 truncate text-xs font-medium text-foreground/90">
+            {title}
+          </h2>
           <Tooltip>
             <TooltipTrigger
               render={
                 <Button
                   variant="ghost"
-                  size="xs"
+                  size="sm-pill"
                   aria-disabled={!canAddToChat || undefined}
                   onClick={addToChat}
                 >
@@ -168,7 +172,7 @@ export default function SideThreadPane(props: {
           </Tooltip>
           <Button
             variant="ghost"
-            size="icon-xs"
+            size="icon-sm-pill"
             aria-label={gt("Delete side chat")}
             disabled={!canOperate || shell === null || deleting}
             onClick={() => void deleteSideChat()}
@@ -177,7 +181,7 @@ export default function SideThreadPane(props: {
           </Button>
           <Button
             variant="ghost"
-            size="icon-xs"
+            size="icon-sm-pill"
             aria-label={gt("Close side chat")}
             onClick={props.onClose}
           >
