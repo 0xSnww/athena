@@ -10,6 +10,11 @@ on:
         required: false
         default: true
         type: boolean
+      skip_verify:
+        description: "Skip typecheck and Athena test verification before pushing (emergency only)"
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: athena-upstream-sync
@@ -23,12 +28,12 @@ jobs:
   sync:
     name: Sync pingdotgg/t3code main into Athena
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     outputs:
-      released: ${{ steps.merge.outputs.released }}
-      tag: ${{ steps.merge.outputs.tag }}
-      sha: ${{ steps.merge.outputs.sha }}
-      notes: ${{ steps.merge.outputs.notes }}
+      released: ${{ steps.publish.outputs.released }}
+      tag: ${{ steps.publish.outputs.tag }}
+      sha: ${{ steps.publish.outputs.sha }}
+      notes: ${{ steps.publish.outputs.notes }}
     steps:
       - name: Checkout origin main (treeless, excluding .repos)
         shell: bash
@@ -45,15 +50,14 @@ jobs:
           git checkout -B main FETCH_HEAD
           git fetch --filter=blob:none --no-tags upstream main
 
-      - name: Merge upstream/main
+      - name: Merge upstream/main locally
         id: merge
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          AUTO_RELEASE: ${{ github.event_name == 'schedule' || inputs.auto_release }}
         run: |
           set -euo pipefail
-          echo "released=false" >> "$GITHUB_OUTPUT"
+          echo "merged=false" >> "$GITHUB_OUTPUT"
 
           behind_count="$(git rev-list --count HEAD..upstream/main)"
           if [[ "$behind_count" -eq 0 ]]; then
@@ -94,17 +98,112 @@ jobs:
             exit 0
           fi
 
+          echo "merged=true" >> "$GITHUB_OUTPUT"
+          echo "behind_count=${behind_count}" >> "$GITHUB_OUTPUT"
+          echo "upstream_sha=${upstream_sha}" >> "$GITHUB_OUTPUT"
+          {
+            echo "summary<<EOF_ATHENA_SYNC_SUMMARY"
+            echo "${summary:-- Upstream updates}"
+            echo "EOF_ATHENA_SYNC_SUMMARY"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Setup Vite+
+        if: steps.merge.outputs.merged == 'true' && (github.event_name == 'schedule' || inputs.skip_verify != true)
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1.15.0
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+
+      - name: Verify merged commit before pushing
+        id: verify
+        if: steps.merge.outputs.merged == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SKIP_VERIFY: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_verify == true }}
+          BEHIND_COUNT: ${{ steps.merge.outputs.behind_count }}
+          UPSTREAM_SHA: ${{ steps.merge.outputs.upstream_sha }}
+          SUMMARY: ${{ steps.merge.outputs.summary }}
+        run: |
+          set -euo pipefail
+          if [[ "$SKIP_VERIFY" == "true" ]]; then
+            echo "Verification skipped by manual workflow_dispatch input."
+            echo "passed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          log_file="$(mktemp)"
+          set +e
+          {
+            echo "=== Install dependencies ==="
+            vp install --frozen-lockfile && \
+            echo "=== Typecheck ===" && \
+            vp run typecheck && \
+            echo "=== Athena guardrail tests ===" && \
+            vp test run \
+              apps/web/src/components/athena/AthenaRightSide.test.ts \
+              apps/desktop/src/app/DesktopAppIdentity.test.ts \
+              scripts/athena-doctor.test.ts
+          } >"$log_file" 2>&1
+          status=$?
+          set -e
+
+          cat "$log_file"
+
+          if [[ "$status" -ne 0 ]]; then
+            tail_log="$(tail -n 80 "$log_file")"
+            issue_title="Upstream sync verification failed with pingdotgg/t3code"
+            issue_body="$(printf '%s\n\n### Failure tail\n```text\n%s\n```\n\n### Upstream commits waiting (%s, head `%s`)\n%s\n\n### Reproduce locally\n```bash\ngit fetch upstream main && git merge upstream/main && vp run typecheck\n```\n' \
+              'Automated sync from `pingdotgg/t3code` (`main`) merged cleanly in git, but failed typecheck or Athena guardrail tests. `main` was left untouched and no release was cut.' \
+              "$tail_log" \
+              "$BEHIND_COUNT" \
+              "$UPSTREAM_SHA" \
+              "$SUMMARY")"
+
+            existing_issue="$(gh issue list --state open --search "\"${issue_title}\" in:title" --json number --jq '.[0].number // empty')"
+            if [[ -n "$existing_issue" ]]; then
+              gh issue comment "$existing_issue" --body "$issue_body"
+            else
+              gh issue create --title "$issue_title" --body "$issue_body"
+            fi
+            echo "::warning::Upstream sync verification failed; details recorded in GitHub issue and main was left untouched."
+            echo "passed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "passed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Push verified main and tag release
+        id: publish
+        if: steps.merge.outputs.merged == 'true' && steps.verify.outputs.passed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTO_RELEASE: ${{ github.event_name == 'schedule' || inputs.auto_release }}
+          BEHIND_COUNT: ${{ steps.merge.outputs.behind_count }}
+          UPSTREAM_SHA: ${{ steps.merge.outputs.upstream_sha }}
+          SUMMARY: ${{ steps.merge.outputs.summary }}
+        run: |
+          set -euo pipefail
+          echo "released=false" >> "$GITHUB_OUTPUT"
+
           git push origin main
           new_sha="$(git rev-parse HEAD)"
 
-          # Close any open upstream-sync conflict issue now that main merged cleanly.
-          existing_issue="$(gh issue list --state open --search '"Upstream sync conflict with pingdotgg/t3code" in:title' --json number --jq '.[0].number // empty')"
-          if [[ -n "$existing_issue" ]]; then
-            gh issue close "$existing_issue" --comment "Resolved cleanly in ${new_sha}." || true
-          fi
+          # Close any open upstream-sync conflict or verification-failure issues now that main verified cleanly.
+          for title in \
+            "Upstream sync conflict with pingdotgg/t3code" \
+            "Upstream sync verification failed with pingdotgg/t3code"
+          do
+            existing_issue="$(gh issue list --state open --search "\"${title}\" in:title" --json number --jq '.[0].number // empty')"
+            if [[ -n "$existing_issue" ]]; then
+              gh issue close "$existing_issue" --comment "Resolved and verified cleanly in ${new_sha}." || true
+            fi
+          done
 
           if [[ "$AUTO_RELEASE" != "true" ]]; then
-            echo "Merged cleanly (${new_sha}); auto_release=false so skipping tag."
+            echo "Merged and verified cleanly (${new_sha}); auto_release=false so skipping tag."
             exit 0
           fi
 
@@ -117,13 +216,10 @@ jobs:
           git tag "$next_tag" "$new_sha"
           git push origin "$next_tag"
 
-          if [[ -z "$summary" ]]; then
-            summary="- Upstream updates"
-          fi
           release_notes="$(printf '### Synced from `pingdotgg/t3code` (`%s`, %s new commit(s))\n%s' \
-            "$upstream_sha" \
-            "$behind_count" \
-            "$summary")"
+            "$UPSTREAM_SHA" \
+            "$BEHIND_COUNT" \
+            "$SUMMARY")"
 
           echo "released=true" >> "$GITHUB_OUTPUT"
           echo "tag=${next_tag}" >> "$GITHUB_OUTPUT"
