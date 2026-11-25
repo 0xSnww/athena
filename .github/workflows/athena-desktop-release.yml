@@ -160,8 +160,7 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          xcode_candidates=(/Applications/Xcode_26*.app /Applications/Xcode.app)
-          for app in "${xcode_candidates[@]}"; do
+          for app in /Applications/Xcode_26*.app /Applications/Xcode.app; do
             if [[ -d "$app/Contents/Developer" ]]; then
               sudo xcode-select -s "$app/Contents/Developer" || true
               break
@@ -212,11 +211,11 @@ jobs:
           set -euo pipefail
           cp .env.example .env
           build_version="${RELEASE_TAG#v}"
-          signed_args=()
           if [[ -n "${CSC_LINK:-}" ]]; then
-            signed_args+=(--signed)
+            vp run dist:desktop:artifact --platform mac --target dmg --arch arm64 --build-version "$build_version" --output-dir release --verbose --signed
+          else
+            vp run dist:desktop:artifact --platform mac --target dmg --arch arm64 --build-version "$build_version" --output-dir release --verbose
           fi
-          vp run dist:desktop:artifact --platform mac --target dmg --arch arm64 --build-version "$build_version" --output-dir release --verbose "${signed_args[@]}"
           test -f release/latest-mac.yml
 
       - name: Verify artifacts and generate SHA256 checksums
