@@ -37,7 +37,7 @@ vp run typecheck      # Typecheck the monorepo
 
 - **PR & `main` checks (`.github/workflows/athena-ci.yml`)**: Runs on standard `ubuntu-latest` runners (unlike upstream's `ci.yml`, which targets Blacksmith runners). PRs run `vp run check:changed`; pushes to `main` run formatting, lint, workspace typecheck, and Athena guardrail tests.
 - **Verified upstream sync (`.github/workflows/athena-upstream-sync.yml`)**: Runs every 6 hours, merges `upstream/main` locally, and runs typecheck + Athena guardrail tests **before** pushing `main` or tagging a release.
-  - If git hits a merge conflict, or if verification fails, `main` stays untouched and an issue is opened/updated with details.
+  - If git hits a merge conflict, or if verification fails, `main` stays untouched and details are always written to the workflow job summary (and opened/updated as a GitHub issue when Issues are enabled on the fork).
   - To resolve a conflict locally:
     ```bash
     git fetch upstream main

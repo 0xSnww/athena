@@ -2,7 +2,7 @@ name: Athena Upstream Sync
 
 on:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "17 */6 * * *"
   workflow_dispatch:
     inputs:
       auto_release:
@@ -45,10 +45,10 @@ jobs:
           git init .
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git remote add upstream "https://github.com/pingdotgg/t3code.git"
-          git sparse-checkout set --no-cone '/*' '!/.repos/'
+          git sparse-checkout set --no-cone '/*' '!/.repos/' '!/apps/mobile/modules/t3-terminal/Vendor/**/*.a'
           git fetch --filter=blob:none --tags origin main
           git checkout -B main FETCH_HEAD
-          git fetch --filter=blob:none --no-tags upstream main
+          git fetch --no-tags upstream main
 
       - name: Merge upstream/main locally
         id: merge
@@ -88,14 +88,22 @@ jobs:
               "$upstream_sha" \
               "${summary:-<no non-merge commits>}")"
 
-            existing_issue="$(gh issue list --state open --search "\"${issue_title}\" in:title" --json number --jq '.[0].number // empty')"
-            if [[ -n "$existing_issue" ]]; then
-              gh issue comment "$existing_issue" --body "$issue_body"
-            else
-              gh issue create --title "$issue_title" --body "$issue_body"
+            printf '## %s\n\n%s\n' "$issue_title" "$issue_body" >> "$GITHUB_STEP_SUMMARY"
+
+            issues_enabled="$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.has_issues' 2>/dev/null || echo false)"
+            if [[ "$issues_enabled" == "true" ]]; then
+              existing_issue="$(gh issue list --state open --search "\"${issue_title}\" in:title" --json number --jq '.[0].number // empty' || true)"
+              if [[ -n "$existing_issue" ]]; then
+                gh issue comment "$existing_issue" --body "$issue_body"
+              else
+                gh issue create --title "$issue_title" --body "$issue_body"
+              fi
+              echo "Merge conflict recorded in job summary and GitHub issue; exiting cleanly without breaking main."
+              exit 0
             fi
-            echo "Merge conflict recorded in GitHub issue; exiting cleanly without breaking main."
-            exit 0
+
+            echo "::error::Upstream sync hit merge conflicts (${behind_count} commits waiting at ${upstream_sha}). GitHub Issues are disabled on ${GITHUB_REPOSITORY}; see the job summary for conflicting files."
+            exit 1
           fi
 
           echo "merged=true" >> "$GITHUB_OUTPUT"
@@ -161,15 +169,23 @@ jobs:
               "$UPSTREAM_SHA" \
               "$SUMMARY")"
 
-            existing_issue="$(gh issue list --state open --search "\"${issue_title}\" in:title" --json number --jq '.[0].number // empty')"
-            if [[ -n "$existing_issue" ]]; then
-              gh issue comment "$existing_issue" --body "$issue_body"
-            else
-              gh issue create --title "$issue_title" --body "$issue_body"
-            fi
-            echo "::warning::Upstream sync verification failed; details recorded in GitHub issue and main was left untouched."
+            printf '## %s\n\n%s\n' "$issue_title" "$issue_body" >> "$GITHUB_STEP_SUMMARY"
             echo "passed=false" >> "$GITHUB_OUTPUT"
-            exit 0
+
+            issues_enabled="$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.has_issues' 2>/dev/null || echo false)"
+            if [[ "$issues_enabled" == "true" ]]; then
+              existing_issue="$(gh issue list --state open --search "\"${issue_title}\" in:title" --json number --jq '.[0].number // empty' || true)"
+              if [[ -n "$existing_issue" ]]; then
+                gh issue comment "$existing_issue" --body "$issue_body"
+              else
+                gh issue create --title "$issue_title" --body "$issue_body"
+              fi
+              echo "::warning::Upstream sync verification failed; details recorded in job summary and GitHub issue and main was left untouched."
+              exit 0
+            fi
+
+            echo "::error::Upstream sync verification failed (${BEHIND_COUNT} commits waiting at ${UPSTREAM_SHA}). GitHub Issues are disabled on ${GITHUB_REPOSITORY}; see the job summary for failure details."
+            exit 1
           fi
 
           echo "passed=true" >> "$GITHUB_OUTPUT"
@@ -192,43 +208,58 @@ jobs:
           new_sha="$(git rev-parse HEAD)"
 
           # Close any open upstream-sync conflict or verification-failure issues now that main verified cleanly.
-          for title in \
-            "Upstream sync conflict with pingdotgg/t3code" \
-            "Upstream sync verification failed with pingdotgg/t3code"
-          do
-            existing_issue="$(gh issue list --state open --search "\"${title}\" in:title" --json number --jq '.[0].number // empty')"
-            if [[ -n "$existing_issue" ]]; then
-              gh issue close "$existing_issue" --comment "Resolved and verified cleanly in ${new_sha}." || true
-            fi
-          done
-
-          if [[ "$AUTO_RELEASE" != "true" ]]; then
-            echo "Merged and verified cleanly (${new_sha}); auto_release=false so skipping tag."
-            exit 0
+          issues_enabled="$(gh api "repos/${GITHUB_REPOSITORY}" --jq '.has_issues' 2>/dev/null || echo false)"
+          if [[ "$issues_enabled" == "true" ]]; then
+            for title in \
+              "Upstream sync conflict with pingdotgg/t3code" \
+              "Upstream sync verification failed with pingdotgg/t3code"
+            do
+              existing_issue="$(gh issue list --state open --search "\"${title}\" in:title" --json number --jq '.[0].number // empty' || true)"
+              if [[ -n "$existing_issue" ]]; then
+                gh issue close "$existing_issue" --comment "Resolved and verified cleanly in ${new_sha}." || true
+              fi
+            done
           fi
 
-          # Use monotonic 3-part stable semver (v1.0.N) so electron-updater on the latest channel
-          # always treats each synced Athena build as newer than v0.1.x and prior v1.0.N builds.
-          last_patch="$(git tag -l 'v1.0.*' | sed -E 's/^v1\.0\.([0-9]+)$/\1/' | grep -E '^[0-9]+$' | sort -n | tail -n 1 || true)"
-          next_patch="$(( ${last_patch:-0} + 1 ))"
-          next_tag="v1.0.${next_patch}"
+          release_line="- **Release tag:** skipped (\`auto_release=false\`)"
+          if [[ "$AUTO_RELEASE" == "true" ]]; then
+            # Use monotonic 3-part stable semver (v1.0.N) so electron-updater on the latest channel
+            # always treats each synced Athena build as newer than v0.1.x and prior v1.0.N builds.
+            last_patch="$(git tag -l 'v1.0.*' | sed -E 's/^v1\.0\.([0-9]+)$/\1/' | grep -E '^[0-9]+$' | sort -n | tail -n 1 || true)"
+            next_patch="$(( ${last_patch:-0} + 1 ))"
+            next_tag="v1.0.${next_patch}"
 
-          git tag "$next_tag" "$new_sha"
-          git push origin "$next_tag"
+            git tag "$next_tag" "$new_sha"
+            git push origin "$next_tag"
 
-          release_notes="$(printf '### Synced from `pingdotgg/t3code` (`%s`, %s new commit(s))\n%s' \
-            "$UPSTREAM_SHA" \
-            "$BEHIND_COUNT" \
-            "$SUMMARY")"
+            release_notes="$(printf '### Synced from `pingdotgg/t3code` (`%s`, %s new commit(s))\n%s' \
+              "$UPSTREAM_SHA" \
+              "$BEHIND_COUNT" \
+              "$SUMMARY")"
 
-          echo "released=true" >> "$GITHUB_OUTPUT"
-          echo "tag=${next_tag}" >> "$GITHUB_OUTPUT"
-          echo "sha=${new_sha}" >> "$GITHUB_OUTPUT"
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "tag=${next_tag}" >> "$GITHUB_OUTPUT"
+            echo "sha=${new_sha}" >> "$GITHUB_OUTPUT"
+            {
+              echo "notes<<EOF_ATHENA_RELEASE_NOTES"
+              echo "$release_notes"
+              echo "EOF_ATHENA_RELEASE_NOTES"
+            } >> "$GITHUB_OUTPUT"
+            release_line="- **Release tag:** \`${next_tag}\`"
+          else
+            echo "Merged and verified cleanly (${new_sha}); auto_release=false so skipping tag."
+          fi
+
           {
-            echo "notes<<EOF_ATHENA_RELEASE_NOTES"
-            echo "$release_notes"
-            echo "EOF_ATHENA_RELEASE_NOTES"
-          } >> "$GITHUB_OUTPUT"
+            echo "### Athena Upstream Sync Succeeded"
+            echo ""
+            echo "- **Synced commit:** \`${new_sha}\`"
+            echo "- **Upstream \`pingdotgg/t3code\`:** \`${UPSTREAM_SHA}\` (${BEHIND_COUNT} commit(s))"
+            echo "$release_line"
+            echo ""
+            echo "#### Upstream commits merged"
+            echo "$SUMMARY"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   release:
     needs: sync
