@@ -1109,11 +1109,11 @@ function RightPanelTab(
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
-        "cursor-pointer group/tab flex h-6 max-w-36 shrink-0 items-center gap-0.5 rounded-md pr-2 pl-1.5 text-xs",
+        "cursor-pointer group/tab flex h-6 max-w-36 shrink-0 items-center gap-0.5 rounded-full pr-2 pl-2 text-xs transition-colors",
         props.ownsDesktopTitleBar && "[-webkit-app-region:no-drag]",
         props.active
-          ? "bg-accent text-foreground"
-          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+          ? "bg-black/[0.08] text-foreground dark:bg-white/[0.11]"
+          : "text-muted-foreground hover:bg-black/[0.04] hover:text-foreground dark:hover:bg-white/[0.06]",
         isDragging && "relative z-10",
       )}
     >
@@ -1685,7 +1685,15 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
           />
         ) : null}
       </div>
-      <div className="flex min-h-0 flex-1 flex-col" data-right-panel-surface-content>
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col",
+          props.mode === "inline" &&
+            !props.maximized &&
+            "[[data-athena-rail=true]_&]:athena-sidebar-acrylic [[data-athena-rail=true]_&]:mt-1 [[data-athena-rail=true]_&]:mr-3 [[data-athena-rail=true]_&]:mb-3 [[data-athena-rail=true]_&]:ml-1 [[data-athena-rail=true]_&]:overflow-hidden [[data-athena-rail=true]_&]:rounded-2xl",
+        )}
+        data-right-panel-surface-content
+      >
         {props.activeSurfaceId === null ? (
           <RightPanelEmptyState
             onAddBrowser={props.onAddBrowser}

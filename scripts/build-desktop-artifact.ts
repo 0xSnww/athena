@@ -64,6 +64,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
 const LINUX_ICON_SIZES = [16, 22, 24, 32, 48, 64, 128, 256, 512] as const;
 const DESKTOP_APP_ID = "com.t3tools.t3code";
+const DEFAULT_DESKTOP_UPDATE_REPOSITORY = "0xSnww/athena";
 const APPLE_TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/u;
 
 const BuildPlatform = Schema.Literals(["mac", "linux", "win"]);
@@ -2730,16 +2731,26 @@ export function resolveDesktopRuntimeDependencies(
 
 export const resolveGitHubPublishConfig = Effect.fn("resolveGitHubPublishConfig")(function* (
   updateChannel: "latest" | "nightly",
+  options?: {
+    readonly fallbackToDefault?: boolean;
+    readonly repoEnv?: Readonly<Record<string, string | undefined>>;
+  },
 ) {
   const env = yield* Config.all({
     updateRepository: Config.String("T3CODE_DESKTOP_UPDATE_REPOSITORY").pipe(Config.option),
     githubRepository: Config.String("GITHUB_REPOSITORY").pipe(Config.option),
   });
-  const rawRepo = (
+  let rawRepo = (
     Option.getOrUndefined(env.updateRepository)?.trim() ||
     Option.getOrUndefined(env.githubRepository)?.trim() ||
     ""
   ).trim();
+  if (!rawRepo && options?.fallbackToDefault !== false) {
+    const repoEnv = options?.repoEnv ?? loadRepoEnv({ baseEnv: {}, repoRoot: yield* RepoRoot });
+    rawRepo = (
+      repoEnv.T3CODE_DESKTOP_UPDATE_REPOSITORY ?? DEFAULT_DESKTOP_UPDATE_REPOSITORY
+    ).trim();
+  }
   if (!rawRepo) return undefined;
 
   const [owner, repo, ...rest] = rawRepo.split("/");
@@ -2853,7 +2864,9 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   // Missing publish config infers a GitHub feed from tokens; staging has no repository, so manifest generation would crash.
   buildConfig.publish = null;
   if (!isDesktopPreviewVersion(version)) {
-    const publishConfig = yield* resolveGitHubPublishConfig(updateChannel);
+    const publishConfig = yield* resolveGitHubPublishConfig(updateChannel, {
+      fallbackToDefault: !mockUpdates,
+    });
     if (publishConfig) {
       buildConfig.publish = [publishConfig];
     } else if (mockUpdates) {

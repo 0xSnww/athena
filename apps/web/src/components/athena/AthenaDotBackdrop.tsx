@@ -174,8 +174,8 @@ function drawCloudMatrix(
   const cellCount = rows * cols;
   const aspect = width / Math.max(height, 1);
   const centerX = width * 0.5;
-  const clearHalf = Math.min(width * 0.23, 305);
-  const fadeSpan = Math.max(155, Math.min(270, width * 0.21));
+  const clearHalf = Math.min(width * 0.27, 355);
+  const fadeSpan = Math.max(170, Math.min(280, width * 0.22));
 
   const density = new Float32Array(cellCount);
   const puffHeight = new Float32Array(cellCount);
@@ -187,7 +187,7 @@ function drawCloudMatrix(
     const ny = y / height;
     const py = ny * 3.15;
     const rowOff = row * cols;
-    const bottomRelief = smoothstep(0.75, 1, ny) * 80;
+    const bottomRelief = smoothstep(0.75, 1, ny) * 44;
     const effClear = Math.max(55, clearHalf - bottomRelief);
 
     for (let col = 0; col < cols; col += 1) {
@@ -199,8 +199,8 @@ function drawCloudMatrix(
       const w1y = (fbm2d(px * 0.58 - 4.1, py * 0.58 + 4.8, 61, 3, 0.52) - 0.5) * 0.56;
 
       // Warp the center reading lane so clouds taper organically instead of clipping vertically.
-      const distC = Math.abs(x - centerX) + w1x * 115;
-      const lane = smoothstep(effClear * 0.62, effClear * 0.62 + fadeSpan, distC);
+      const distC = Math.abs(x - centerX) + w1x * 85;
+      const lane = smoothstep(effClear * 0.8, effClear * 0.8 + fadeSpan, distC);
       if (lane <= 0.012) continue;
 
       const env = puffEnvelope(nx + w1x * 0.085, ny + w1y * 0.085);

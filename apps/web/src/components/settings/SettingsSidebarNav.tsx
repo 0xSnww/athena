@@ -263,9 +263,9 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       {...navArea}
       role="navigation"
       className={cn(
-        "flex w-60 shrink-0 flex-col border-e bg-sidebar text-sidebar-foreground max-md:w-14",
+        "flex w-60 shrink-0 flex-col border-e border-border/50 bg-black/[0.025] text-sidebar-foreground max-md:w-14 dark:border-white/[0.08] dark:bg-white/[0.02]",
         compactSearchOpen &&
-          "max-md:absolute max-md:inset-y-0 max-md:start-0 max-md:z-10 max-md:w-full",
+          "max-md:absolute max-md:inset-y-0 max-md:start-0 max-md:z-10 max-md:w-full max-md:bg-background",
       )}
     >
       <SidebarContent className="overflow-x-hidden">
@@ -273,7 +273,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
           <div className="flex flex-col gap-2">
             <div
               className={cn(
-                "flex h-8 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground",
+                "flex h-8 items-center gap-2 rounded-full border border-border/55 bg-black/[0.04] px-3 py-1.5 text-sm font-medium text-sidebar-muted-foreground transition-colors hover:border-border/80 hover:text-sidebar-foreground focus-within:border-border focus-within:bg-black/[0.06] focus-within:text-sidebar-foreground dark:border-white/[0.08] dark:bg-white/[0.05] dark:focus-within:bg-white/[0.07]",
                 !compactSearchOpen && "max-md:hidden",
               )}
             >

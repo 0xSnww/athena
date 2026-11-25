@@ -390,7 +390,7 @@ function SidebarControl({ showSidebar }: { readonly showSidebar: boolean }) {
       data-sidebar-control=""
     >
       {showSidebar ? (
-        isMobile || pathname.startsWith("/settings") || pathname.startsWith("/usage") ? (
+        isMobile ? (
           <Tooltip>
             <TooltipTrigger
               render={
@@ -462,8 +462,7 @@ export function AppSidebarLayout({
     "--panel-animation-duration": `${panelAnimationDurationMs}ms`,
     ...windowControlsInsetStyle,
   } as CSSProperties;
-  const showAthenaRail =
-    showSidebar && !pathname.startsWith("/settings") && !pathname.startsWith("/usage");
+  const showAthenaRail = showSidebar;
 
   return (
     <PanelAnimationSuppressionProvider value={panelAnimationsSuppressed}>
