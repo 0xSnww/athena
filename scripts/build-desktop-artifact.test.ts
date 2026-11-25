@@ -554,6 +554,44 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     ),
   );
 
+  it.effect("defaults desktop release builds to the Athena GitHub update feed", () =>
+    Effect.gen(function* () {
+      const release = yield* createBuildConfig(
+        "mac",
+        "dmg",
+        "1.0.1",
+        false,
+        false,
+        undefined,
+        undefined,
+      );
+      const mockRelease = yield* createBuildConfig(
+        "mac",
+        "dmg",
+        "1.0.1",
+        false,
+        true,
+        4141,
+        undefined,
+      );
+
+      assert.deepStrictEqual(release.publish, [
+        {
+          provider: "github",
+          owner: "0xSnww",
+          repo: "athena",
+          releaseType: "release",
+        },
+      ]);
+      assert.deepStrictEqual(mockRelease.publish, [
+        {
+          provider: "generic",
+          url: "http://localhost:4141",
+        },
+      ]);
+    }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
+  );
+
   it.effect("names the Electron window class in the Linux desktop entry", () =>
     Effect.gen(function* () {
       const linux = yield* createBuildConfig(

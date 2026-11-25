@@ -19,6 +19,16 @@ on:
           - both
           - windows
           - macos
+      macos_runner:
+        description: "GitHub runner label for the macOS build"
+        required: false
+        default: "macos-26"
+        type: choice
+        options:
+          - macos-26
+          - macos-15
+          - macos-latest
+          - self-hosted
   workflow_call:
     inputs:
       tag:
@@ -35,11 +45,20 @@ on:
         required: false
         default: "both"
         type: string
+      macos_runner:
+        description: "GitHub runner label for the macOS build"
+        required: false
+        default: "macos-26"
+        type: string
       notes:
         description: "Optional extra release notes to prepend"
         required: false
         default: ""
         type: string
+
+concurrency:
+  group: athena-desktop-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -84,11 +103,13 @@ jobs:
         shell: bash
         env:
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+          T3CODE_DESKTOP_UPDATE_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
           cp .env.example .env
           build_version="${RELEASE_TAG#v}"
           vp run dist:desktop:artifact --platform win --target nsis --arch x64 --build-version "$build_version" --output-dir release --verbose
+          test -f release/latest.yml
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -125,9 +146,22 @@ jobs:
   build-macos:
     if: github.event_name == 'push' || inputs.platform == 'both' || inputs.platform == 'macos'
     name: Build macOS arm64 (.dmg)
-    runs-on: macos-15
-    timeout-minutes: 45
+    runs-on: ${{ inputs.macos_runner || 'macos-26' }}
+    timeout-minutes: 60
     steps:
+      - name: Select Xcode 26 if installed
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          xcode_candidates=(/Applications/Xcode_26*.app /Applications/Xcode.app)
+          for app in "${xcode_candidates[@]}"; do
+            if [[ -d "$app/Contents/Developer" ]]; then
+              sudo xcode-select -s "$app/Contents/Developer" || true
+              break
+            fi
+          done
+          xcodebuild -version || true
       - name: Checkout
         shell: bash
         env:
@@ -161,6 +195,7 @@ jobs:
         shell: bash
         env:
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+          T3CODE_DESKTOP_UPDATE_REPOSITORY: ${{ github.repository }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
@@ -175,6 +210,7 @@ jobs:
             signed_args+=(--signed)
           fi
           vp run dist:desktop:artifact --platform mac --target dmg --arch arm64 --build-version "$build_version" --output-dir release --verbose "${signed_args[@]}"
+          test -f release/latest-mac.yml
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
