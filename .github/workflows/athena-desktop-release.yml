@@ -10,6 +10,11 @@ on:
         description: "GitHub release tag to create or upload installers to (e.g. v1.0.1 or v1.0.2-beta.1)"
         required: true
         type: string
+      sha:
+        description: "Commit SHA to build (defaults to branch head)"
+        required: false
+        default: ""
+        type: string
       platform:
         description: "Which platform(s) to build"
         required: false
@@ -249,10 +254,11 @@ jobs:
     name: Publish GitHub Release
     needs: [build-windows, build-macos]
     if: >-
-      always() &&
-      !contains(needs.*.result, 'failure') &&
-      !contains(needs.*.result, 'cancelled') &&
-      (needs.build-windows.result == 'success' || needs.build-macos.result == 'success')
+      always() && (
+        ((github.event_name == 'push' || inputs.platform == 'both') && needs.build-windows.result == 'success' && needs.build-macos.result == 'success') ||
+        (github.event_name != 'push' && inputs.platform == 'windows' && needs.build-windows.result == 'success') ||
+        (github.event_name != 'push' && inputs.platform == 'macos' && needs.build-macos.result == 'success')
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -272,15 +278,49 @@ jobs:
           TARGET_SHA: ${{ inputs.sha || github.sha }}
           EXTRA_NOTES: ${{ inputs.notes || '' }}
           EXPLICIT_PRERELEASE: ${{ inputs.prerelease == true }}
+          EXPECT_WINDOWS: ${{ github.event_name == 'push' || inputs.platform == 'both' || inputs.platform == 'windows' }}
+          EXPECT_MACOS: ${{ github.event_name == 'push' || inputs.platform == 'both' || inputs.platform == 'macos' }}
         run: |
           set -euo pipefail
           shopt -s nullglob
 
           cd staged-release
+          if [[ "$EXPECT_WINDOWS" == "true" ]]; then
+            win_exes=(*.exe)
+            if [[ ! -f latest.yml || "${#win_exes[@]}" -eq 0 ]]; then
+              echo "::error::Expected Windows release assets (latest.yml + *.exe) are missing."
+              exit 1
+            fi
+          fi
+          if [[ "$EXPECT_MACOS" == "true" ]]; then
+            mac_dmgs=(*.dmg)
+            mac_zips=(*.zip)
+            if [[ ! -f latest-mac.yml || "${#mac_dmgs[@]}" -eq 0 || "${#mac_zips[@]}" -eq 0 ]]; then
+              echo "::error::Expected macOS release assets (latest-mac.yml + *.dmg + *.zip) are missing."
+              exit 1
+            fi
+          fi
+
+          release_exists="false"
+          if gh release view "$RELEASE_TAG" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            release_exists="true"
+          fi
+
           checksum_parts=(SHA256SUMS-*.txt)
           if [[ "${#checksum_parts[@]}" -gt 0 ]]; then
-            cat "${checksum_parts[@]}" | sort -k2 > SHA256SUMS.txt
+            new_sums="$(mktemp)"
+            sums_dir="$(mktemp -d)"
+            cat "${checksum_parts[@]}" > "$new_sums"
             rm -f "${checksum_parts[@]}"
+            if [[ "$release_exists" == "true" ]]; then
+              gh release download "$RELEASE_TAG" --repo "${GITHUB_REPOSITORY}" --pattern "SHA256SUMS.txt" --dir "$sums_dir" 2>/dev/null || true
+            fi
+            if [[ -s "$new_sums" && -s "${sums_dir}/SHA256SUMS.txt" ]]; then
+              awk 'NR == FNR { seen[$2] = 1; next } NF >= 2 && !($2 in seen) { print }' "$new_sums" "${sums_dir}/SHA256SUMS.txt" | cat - "$new_sums" | sort -k2 > SHA256SUMS.txt
+            else
+              sort -k2 "$new_sums" > SHA256SUMS.txt
+            fi
+            rm -rf "$new_sums" "$sums_dir"
           fi
 
           files=(*.exe *.dmg *.zip *.blockmap latest*.yml SHA256SUMS.txt)
@@ -301,7 +341,7 @@ jobs:
             release_notes="$(printf '%s\n\n%s\n' "$EXTRA_NOTES" "$release_notes")"
           fi
 
-          if ! gh release view "$RELEASE_TAG" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+          if [[ "$release_exists" != "true" ]]; then
             create_args=(
               "$RELEASE_TAG"
               --repo "${GITHUB_REPOSITORY}"
