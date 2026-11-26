@@ -152,6 +152,7 @@ jobs:
             vp test run \
               apps/web/src/components/athena/AthenaRightSide.test.ts \
               apps/desktop/src/app/DesktopAppIdentity.test.ts \
+              apps/desktop/src/electron/MacAdHocUpdateInstaller.test.ts \
               scripts/athena-doctor.test.ts
           } >"$log_file" 2>&1
           status=$?

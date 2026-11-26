@@ -4,10 +4,34 @@ import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
 
-import { AppImageUpdater, autoUpdater } from "electron-updater";
+import { AppImageUpdater, MacUpdater, autoUpdater } from "electron-updater";
+
+import {
+  createDefaultMacAdHocInstallerDeps,
+  tryInstallAdHocMacUpdate,
+} from "./MacAdHocUpdateInstaller.ts";
 
 type AutoUpdater = typeof autoUpdater;
 type SpawnLog = (cmd: string, args?: Array<string>, ...rest: Array<unknown>) => Promise<boolean>;
+
+interface MacUpdaterInternals {
+  readonly app?: {
+    readonly app?: {
+      readonly getPath?: (name: "exe") => string;
+    };
+    readonly quit: () => void;
+  };
+  readonly nativeUpdater?: {
+    readonly emit: (event: string) => boolean;
+  };
+  readonly downloadedUpdateHelper?: {
+    readonly file?: string | null;
+    readonly downloadedFileInfo?: {
+      readonly sha512?: string;
+    } | null;
+  } | null;
+  readonly closeServerIfExists?: () => void;
+}
 
 // Electron holds the AppImage runtime's keepalive pipe and some files without O_CLOEXEC; a
 // relaunched AppImage inherits them, so old runtimes and FUSE mounts never exit. bash (AppRun
@@ -174,6 +198,40 @@ export const make = ElectronUpdater.of({
     return Effect.suspend(() => {
       const channel = autoUpdater.channel;
       if (autoUpdater instanceof AppImageUpdater) relaunchWithoutInheritedDescriptors(autoUpdater);
+      if (autoUpdater instanceof MacUpdater) {
+        const macUpdater = autoUpdater as unknown as MacUpdaterInternals;
+        const execPath = macUpdater.app?.app?.getPath?.("exe") ?? "";
+        return Effect.tryPromise({
+          try: async () => {
+            const handled = await tryInstallAdHocMacUpdate({
+              zipPath: macUpdater.downloadedUpdateHelper?.file,
+              expectedSha512: macUpdater.downloadedUpdateHelper?.downloadedFileInfo?.sha512,
+              isForceRunAfter,
+              deps: createDefaultMacAdHocInstallerDeps({
+                execPath,
+                pid: process.pid,
+                closeUpdaterServer: () => macUpdater.closeServerIfExists?.(),
+                emitBeforeQuitForUpdate: () => {
+                  macUpdater.nativeUpdater?.emit("before-quit-for-update");
+                },
+                quitApp: () => {
+                  macUpdater.app?.quit();
+                },
+              }),
+            });
+            if (!handled) {
+              autoUpdater.quitAndInstall(isSilent, isForceRunAfter);
+            }
+          },
+          catch: (cause) =>
+            new ElectronUpdaterQuitAndInstallError({
+              channel,
+              isSilent,
+              isForceRunAfter,
+              cause,
+            }),
+        });
+      }
       return Effect.try({
         try: () => autoUpdater.quitAndInstall(isSilent, isForceRunAfter),
         catch: (cause) =>

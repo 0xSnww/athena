@@ -90,4 +90,5 @@ jobs:
             apps/web/src/components/athena/AthenaRightSide.test.ts \
             apps/web/src/components/athena/AthenaUI.browser.test.tsx \
             apps/desktop/src/app/DesktopAppIdentity.test.ts \
+            apps/desktop/src/electron/MacAdHocUpdateInstaller.test.ts \
             scripts/athena-doctor.test.ts
